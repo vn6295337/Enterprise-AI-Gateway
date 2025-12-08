@@ -1,33 +1,82 @@
-# poc-cloud-deploy
+---
+title: Secure LLM Router API
+emoji: 🔐
+colorFrom: blue
+colorTo: purple
+sdk: docker
+pinned: false
+license: mit
+app_port: 7860
+---
 
-## Elevator pitch (3 lines)
-Minimal FastAPI service deployed on Cloud Run, demonstrating containerization, buildpacks usage, environment variables, and managed scaling.  
-Proves that cloud-native deployment skills extend beyond RAG and into general-purpose API hosting.  
-Designed to show recruiters you can deploy any microservice quickly, cleanly, and reproducibly.
+# 🔐 Secure LLM Router API
 
-## What this proves (3 bullets)
-- Ability to package a FastAPI service with either Docker or Cloud Buildpacks.  
-- Correct service configuration: env vars, scaling settings, IAM, and health checks.  
-- Independent Cloud Run deployment with working `/health` and `/query` endpoints.
+A production-ready REST API with multi-provider LLM routing and comprehensive security features.
 
-## Quick start
-1. Install Python dependencies: `pip install -r requirements.txt`  
-2. Run locally: `uvicorn app.main:app --reload`  
-3. Deploy with Buildpacks: `gcloud run deploy poc-cloud-deploy --source . --region=<region>`  
-4. Add environment variables in the Cloud Run console or via CLI.
+## Features
 
-## Live demo
-- Service URL: _(add after deployment)_  
-- Demo GIF: docs/demo.gif
+- **🔑 API Key Authentication**: X-API-Key header validation
+- **⏱️ Rate Limiting**: 10 requests/minute per IP
+- **✅ Input Validation**: Pydantic constraints on all parameters
+- **🔄 Multi-Provider Fallback**: Gemini → Groq → OpenRouter cascade
+- **📊 Health Monitoring**: Public health check endpoint
+- **📝 Auto-Documentation**: OpenAPI/Swagger at `/docs`
 
-## Repo layout
-- `app/` — FastAPI router, endpoints, app factory  
-- `src/` — supporting utils  
-- `tests/` — placeholder for endpoint tests  
-- `docs/` — architecture, implementation notes, run instructions
+## API Endpoints
 
-## Tech stack
-FastAPI, Python, Cloud Run, Cloud Buildpacks, Docker (optional)
+### `GET /health`
+Public health check endpoint (no authentication required)
 
-## License
-MIT
+```bash
+curl https://YOUR-SPACE-URL/health
+```
+
+### `POST /query`
+LLM query endpoint (requires API key authentication)
+
+```bash
+curl -X POST https://YOUR-SPACE-URL/query \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -d '{
+    "prompt": "Explain quantum computing in one sentence",
+    "max_tokens": 256,
+    "temperature": 0.7
+  }'
+```
+
+## Security Features
+
+- **Authentication**: All `/query` requests must include valid `X-API-Key` header
+- **Rate Limiting**: 10 requests per minute per IP address
+- **Input Validation**:
+  - `prompt`: 1-4000 characters
+  - `max_tokens`: 1-2048
+  - `temperature`: 0.0-2.0
+
+## Configuration
+
+This Space requires the following secrets to be configured:
+
+1. **SERVICE_API_KEY**: API key for authenticating requests to this service
+2. At least one LLM provider API key:
+   - **GEMINI_API_KEY**: Google Gemini API key (primary)
+   - **GROQ_API_KEY**: Groq API key (fallback)
+   - **OPENROUTER_API_KEY**: OpenRouter API key (fallback)
+
+## Tech Stack
+
+- **FastAPI**: Modern Python web framework
+- **Uvicorn**: ASGI server
+- **SlowAPI**: Rate limiting middleware
+- **Pydantic**: Input validation
+- **Multi-Provider LLM**: Gemini, Groq, OpenRouter
+
+## Documentation
+
+- Full API documentation available at `/docs` (Swagger UI)
+- Redoc documentation at `/redoc`
+
+## Repository
+
+Source code: [github.com/vn6295337/poc-cloud-deploy](https://github.com/vn6295337/poc-cloud-deploy)
