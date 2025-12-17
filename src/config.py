@@ -743,10 +743,16 @@ DASHBOARD_HTML = """
       
       // Run steps
       for (const step of scenario.steps) {
-        updatePipelineVisual(step.id, 'running');
-        appendLog(getUserFriendlyStepName(step.id) + '...');
-        await new Promise(r => setTimeout(r, 1200));
+        // Execute action first to check if it's a fallback scenario
         const result = step.action();
+
+        // For fallback scenarios, skip initial provider visual (router will handle it)
+        if (result.status !== 'fallback') {
+          updatePipelineVisual(step.id, 'running');
+          appendLog(getUserFriendlyStepName(step.id) + '...');
+          await new Promise(r => setTimeout(r, 1200));
+        }
+
         if (result.status === 'pass') {
           updatePipelineVisual(step.id, 'pass');
           if (scenario.explain?.pass) addCommentary(scenario.explain.pass);
