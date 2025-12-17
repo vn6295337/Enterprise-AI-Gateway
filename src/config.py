@@ -636,12 +636,19 @@ DASHBOARD_HTML = """
     function clearVisual() {
       // Reset pipeline visuals
       clearPipelineVisuals();
-      
-      // Reset step states
+
+      // Reset step states (preserve flex layout and fixed dimensions)
       document.querySelectorAll('[id^="step-"]').forEach(el => {
-        el.className = 'step-block';
+        // Only reset if it's not one of our main lifecycle steps
+        if (!['step-auth', 'step-guard', 'step-router', 'step-llm'].includes(el.id)) {
+          el.className = 'step-block';
+        } else {
+          // Reset only the opacity for lifecycle steps, preserve layout classes
+          el.classList.remove('active', 'pulse-highlight');
+          el.classList.add('opacity-50');
+        }
       });
-      
+
       // Reset provider states
       document.querySelectorAll('[id^="provider-"]').forEach(el => {
         el.className = 'provider-node card';
