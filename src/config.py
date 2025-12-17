@@ -58,7 +58,7 @@ DASHBOARD_HTML = """
     .focus-ring:focus { outline: 2px solid rgba(37,99,235,0.28); outline-offset: 2px; }
     input, textarea { background: #071028; border-color: rgba(148,163,184,0.06); color: #e6eef8; padding: 6px 8px; }
     .prompt-wrap { position: relative; }
-    .token-badge { position: absolute; right: 8px; bottom: 8px; background: rgba(15,23,42,0.8); border:1px solid rgba(148,163,184,0.06); padding: 4px 8px; font-size: 12px; color:#cbd5e1; border-radius: 6px; }
+    .token-badge { position: absolute; right: 8px; top: 8px; background: rgba(15,23,42,0.9); border:1px solid rgba(148,163,184,0.2); padding: 2px 6px; font-size: 10px; color:#94a3b8; border-radius: 4px; z-index: 10; }
     .grid-top { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; align-items:start; }
     .label-top { display:block; margin-bottom: 4px; color: rgba(148,163,184,0.8); font-size: 12px; }
     .card-button { cursor:pointer; user-select:none; }
@@ -108,14 +108,14 @@ DASHBOARD_HTML = """
       z-index: 1000;
     }
     
-    /* Prominent prompt box - FIXED */
+    /* Prominent prompt box */
     .prompt-glow {
       border: 2px solid #3b82f6 !important;
-      box-shadow: 0 0 15px rgba(59, 130, 246, 0.4) !important;
-      border-radius: 12px !important; /* Increased for clear visibility */
-      padding: 10px !important;       /* This creates the visible gap */
-      background: #1e293b !important; /* Contrasting background for the gap area */
-      display: block !important;
+      box-shadow: 0 0 12px rgba(59, 130, 246, 0.3) !important;
+      border-radius: 8px !important;
+      padding: 0 !important;
+      background: #071028;
+      overflow: hidden; /* Fixes Point 2: Clips child elements to the rounded corners */
     }
     
     /* ===== GRID-BASED LAYOUT BALANCE ===== */
@@ -232,8 +232,8 @@ DASHBOARD_HTML = """
           <div class="space-y-2">
             <div class="prompt-wrap prompt-glow">
               <textarea id="input-prompt"
-                        class="w-full h-20 focus-ring text-xs p-2 rounded-md"
-                        style="background: #0f172a !important; border: 1px solid rgba(59, 130, 246, 0.2) !important; color: #e6eef8 !important;"
+                        class="w-full h-20 focus-ring text-xs p-2"
+                        style="background: transparent !important; border: none !important; outline: none !important; box-shadow: none !important; border-radius: 8px !important;"
                         placeholder="Ask anything...">Explain quantum computing in simple terms</textarea>
               <div class="token-badge" id="token-counter">~10 tokens</div>
             </div>
@@ -328,10 +328,10 @@ DASHBOARD_HTML = """
   </div>
 </div>
           
-          <!-- Output Console -->
+          <!-- Current Step Display -->
           <div class="border-t border-slate-700/50 pt-2">
-            <div id="execution-log" class="bg-slate-900/50 rounded p-1.5 h-24 overflow-y-auto text-compact font-mono">
-              <div>> Ready. Select a scenario or enter a custom prompt.</div>
+            <div id="execution-log" class="bg-slate-900/50 rounded p-3 h-24 flex items-center justify-center text-center">
+              <div class="text-sm text-slate-300 font-medium">Ready. Select a scenario or enter a custom prompt.</div>
             </div>
           </div>
         </div>
@@ -600,10 +600,19 @@ DASHBOARD_HTML = """
     
     // Utility functions
     function appendLog(message) {
-      const div = document.createElement('div');
-      div.textContent = message;
-      executionLog.appendChild(div);
-      executionLog.scrollTop = executionLog.scrollHeight;
+      // Replace content with current step, displayed prominently
+      executionLog.innerHTML = `<div class="text-sm text-slate-300 font-medium">${message}</div>`;
+    }
+
+    function getUserFriendlyStepName(stepId) {
+      const stepNames = {
+        'auth': 'Verifying your credentials',
+        'input': 'Checking your request',
+        'injection': 'Protecting against attacks',
+        'router': 'Finding the best AI provider',
+        'provider': 'Getting your response'
+      };
+      return stepNames[stepId] || stepId;
     }
     
     function addCommentary(text) {
@@ -700,7 +709,7 @@ DASHBOARD_HTML = """
       // Reset UI
       clearVisual();
       executionLog.innerHTML = '';
-      appendLog(`> Starting scenario: ${scenario.title}`);
+      appendLog(`Starting: ${scenario.title}`);
       
       // Update inputs
       document.getElementById('input-prompt').value = scenario.prompt;
@@ -735,13 +744,13 @@ DASHBOARD_HTML = """
       // Run steps
       for (const step of scenario.steps) {
         updatePipelineVisual(step.id, 'running');
-        appendLog(`> ${step.label} ...`);
+        appendLog(getUserFriendlyStepName(step.id) + '...');
         await new Promise(r => setTimeout(r, 1200));
         const result = step.action();
         if (result.status === 'pass') {
           updatePipelineVisual(step.id, 'pass');
           if (scenario.explain?.pass) addCommentary(scenario.explain.pass);
-          appendLog(`> ${step.id.toUpperCase()} -> PASS`);
+          appendLog(getUserFriendlyStepName(step.id) + ' ✓');
           lastRunData.steps.push({id: step.id, status: 'pass'});
           // Allow time for connector line animation to complete
           await new Promise(r => setTimeout(r, 600));
@@ -753,7 +762,7 @@ DASHBOARD_HTML = """
             const commentaryText = typeof failCommentary === 'function' ? failCommentary(result.pattern || result.reason) : failCommentary;
             addCommentary(commentaryText);
           }
-          appendLog(`> BLOCKED: ${(result.pattern || result.reason || 'policy').toUpperCase()} -> BLOCKED (ignore all previous)`);
+          appendLog('⚠️ Request blocked for security');
           lastRunData.steps.push({id: step.id, status: 'blocked', reason: result.pattern||result.reason});
           // blocked: no provider call; mark tokens consumed = 0; saved = maxTokens
           lastRunData.tokensConsumed = 0;
@@ -781,7 +790,7 @@ DASHBOARD_HTML = """
 
             // Router activates for this provider attempt
             updatePipelineVisual('router', 'running');
-            appendLog(`> ROUTER: Attempting ${providerName}...`);
+            appendLog(`Trying ${providerName}...`);
             await new Promise(r => setTimeout(r, 1000));
 
             // Light up the provider badge
@@ -795,7 +804,7 @@ DASHBOARD_HTML = """
             if (outcome === 'timeout' || outcome === 'fail') {
               // Provider failed - deactivate router and try next
               addCommentary(`Attempting ${providerName}... ${outcome === 'timeout' ? 'Timeout' : 'Failed'}.`);
-              appendLog(`> ROUTER: ${providerName} ${outcome === 'timeout' ? 'timeout' : 'failed'}. Trying next...`);
+              appendLog(`${providerName} unavailable, trying another...`);
               // Deactivate router (go back to inactive state)
               const routerNode = document.getElementById('step-router');
               if (routerNode) {
@@ -806,13 +815,13 @@ DASHBOARD_HTML = """
             } else if (outcome === 'success') {
               // Provider succeeded - router passes, then show inferencing
               addCommentary(`Attempting ${providerName}... Success!`);
-              appendLog(`> ROUTER: ${providerName} connected successfully!`);
+              appendLog(`Connected to ${providerName} ✓`);
               updatePipelineVisual('router', 'pass');
               await new Promise(r => setTimeout(r, 800));
 
               // Now show inferencing (provider step)
               updatePipelineVisual('provider', 'running');
-              appendLog(`> INFERENCING: Generating response...`);
+              appendLog(`Generating your response...`);
               await new Promise(r => setTimeout(r, 1200));
 
               // Inferencing complete
@@ -841,19 +850,25 @@ DASHBOARD_HTML = """
           }
         } else if (result.status === 'skipped') {
           updatePipelineVisual(step.id, 'pass');
-          appendLog(`> ${step.label} → SKIPPED`);
           lastRunData.steps.push({id: step.id, status: 'skipped'});
         } else {
           updatePipelineVisual(step.id, 'pass');
-          appendLog(`> ${step.label} → PASS`);
+          appendLog(getUserFriendlyStepName(step.id) + ' ✓');
         }
       }
-      
+
       if (!lastRunData.final) {
         lastRunData.final = lastRunData.provider ? 'success' : 'unknown';
         metricStatus.textContent = lastRunData.final === 'success' ? 'Success' : 'Idle';
       }
-      appendLog('> Complete: ' + (lastRunData.final || 'unknown'));
+
+      if (lastRunData.final === 'success') {
+        appendLog('✓ Request completed successfully');
+      } else if (lastRunData.final === 'blocked') {
+        appendLog('⚠️ Request blocked for security');
+      } else {
+        appendLog('Complete');
+      }
     }
     
     // wire scenario buttons
@@ -918,7 +933,7 @@ DASHBOARD_HTML = """
     
     // quick actions
     document.getElementById('download-raw')?.addEventListener('click', ()=>{
-      if (!lastRunData) { appendLog('> Nothing to download. Run a card first.'); return; }
+      if (!lastRunData) { appendLog('Please run a scenario first'); return; }
       const blob = new Blob([JSON.stringify(lastRunData, null, 2)], {type: 'application/json'});
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url;
@@ -927,9 +942,9 @@ DASHBOARD_HTML = """
     });
     
     document.getElementById('copy-snippet')?.addEventListener('click', ()=>{
-      if (!lastRunData) { appendLog('> Nothing to copy. Run a card first.'); return; }
+      if (!lastRunData) { appendLog('Please run a scenario first'); return; }
       const snippet = 'Title: ' + SCENARIOS[lastRunData.scenario].title + '\\\\nResult: ' + lastRunData.final + '\\\\nProvider: ' + (lastRunData.provider||'---') + '\\\\nLatency: ' + (lastRunData.latency||'---') + 'ms\\\\nTokens: ' + (lastRunData.tokensConsumed||0) + '/' + metricTokensMax.textContent;
-      navigator.clipboard.writeText(snippet).then(()=> appendLog('> Exec snippet copied.'));
+      navigator.clipboard.writeText(snippet).then(()=> appendLog('Copied to clipboard'));
     });
 
     // Feature card buttons - delegate to main actions
