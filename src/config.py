@@ -600,17 +600,17 @@ DASHBOARD_HTML = """
         if(!el) return;
         el.classList.add('opacity-50');
         el.classList.remove('active', 'pulse-highlight');
-        
+
         // Reset Inner Box
         const box = el.querySelector('div');
-        box.className = 'w-10 h-10 rounded-lg border border-slate-700 bg-slate-900 flex items-center justify-center mb-2 shadow-lg transition-all duration-300';
-        
+        box.className = 'w-14 h-14 rounded-lg border-2 border-slate-700 bg-slate-900 flex items-center justify-center mb-1.5 shadow-lg transition-all duration-300';
+
         // Reset Icon Text (in case we changed it to 🚫)
         const span = box.querySelector('span');
-        if(id === 'step-auth') span.innerText = '🔐';
+        if(id === 'step-auth') span.innerText = '🔑';
         if(id === 'step-guard') span.innerText = '🛡️';
         if(id === 'step-router') span.innerText = '🔀';
-        if(id === 'step-llm') span.innerText = '🤖';
+        if(id === 'step-llm') span.innerText = '⚙';
       });
 
       // Hide Badge
