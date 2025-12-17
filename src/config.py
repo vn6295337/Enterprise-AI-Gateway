@@ -114,6 +114,7 @@ DASHBOARD_HTML = """
       box-shadow: 0 0 12px rgba(59, 130, 246, 0.3) !important;
       border-radius: 8px !important;
       padding: 8px !important;
+      background: #071028;
     }
     
     /* ===== GRID-BASED LAYOUT BALANCE ===== */
@@ -236,7 +237,7 @@ DASHBOARD_HTML = """
 
           <div class="space-y-2">
             <div class="prompt-wrap prompt-glow">
-              <textarea id="input-prompt" class="w-full h-16 focus-ring rounded text-xs p-1.5" placeholder="Ask anything...">Explain quantum computing in simple terms</textarea>
+              <textarea id="input-prompt" class="w-full h-16 focus-ring text-xs p-1.5 bg-transparent" placeholder="Ask anything...">Explain quantum computing in simple terms</textarea>
               <div class="token-badge" id="token-counter">~10 tokens</div>
             </div>
 
