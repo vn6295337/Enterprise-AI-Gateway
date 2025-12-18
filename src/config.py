@@ -597,6 +597,7 @@ DASHBOARD_HTML = """
     let lastRunData = null;
     let isBatchMode = false;
     let currentScenarioNum = 0;
+    let batchTotal = 0;
     let securityMetrics = {
       adversarialBlocked: 0,      // Count of injection attempts blocked
       piiLeaksPrevented: 0,       // Count of PII exposures stopped
@@ -714,7 +715,7 @@ DASHBOARD_HTML = """
     // Utility functions
     function appendLog(message) {
       // Add scenario number prefix in batch mode
-      const prefix = isBatchMode ? `[SCENARIO ${currentScenarioNum}/2] ` : '';
+      const prefix = isBatchMode ? `[SCENARIO ${currentScenarioNum}/${batchTotal}] ` : '';
       const fullMessage = prefix + message;
 
       // Replace content with current step, displayed prominently
@@ -970,6 +971,7 @@ DASHBOARD_HTML = """
 
       // Enable batch mode
       isBatchMode = true;
+      batchTotal = 2;
 
       // Run 2 scenarios sequentially
       for (let i = 1; i <= 2; i++) {
@@ -989,6 +991,7 @@ DASHBOARD_HTML = """
       // Disable batch mode
       isBatchMode = false;
       currentScenarioNum = 0;
+      batchTotal = 0;
 
       // Display final metrics table in status area
       displayBatchMetricsInStatus(batchStartMetrics);
@@ -1009,6 +1012,7 @@ DASHBOARD_HTML = """
 
       // Enable batch mode
       isBatchMode = true;
+      batchTotal = 8;
 
       // Run 8 security test scenarios sequentially
       for (let i = 1; i <= 8; i++) {
@@ -1028,6 +1032,7 @@ DASHBOARD_HTML = """
       // Disable batch mode
       isBatchMode = false;
       currentScenarioNum = 0;
+      batchTotal = 0;
 
       // Display final security metrics in status area
       displaySecurityMetrics(batchStartMetrics);
@@ -1060,20 +1065,24 @@ DASHBOARD_HTML = """
             // Check for injection patterns
             const hasInjection = injectionPatterns.some(pattern => pattern.test(promptToUse));
 
-            // Determine block reason and increment metrics
+            // Determine block reason and increment metrics (additive)
             if (piiDetection.hasPII) {
-              securityMetrics.piiLeaksPrevented++;
+              securityMetrics.piiLeaksPrevented += piiDetection.count;
               // GDPR fine: $50K, CCPA fine: $7.5K, using average $28K per violation
               securityMetrics.complianceFinesAvoided += 28000 * piiDetection.count;
-              return {
-                status: "block",
-                pattern: `PII detected (${piiDetection.piiTypes.join(', ')})`
-              };
-            } else if (hasInjection) {
+            }
+            if (hasInjection) {
               securityMetrics.adversarialBlocked++;
+            }
+
+            // Return block status if any security violation detected
+            if (piiDetection.hasPII || hasInjection) {
+              const violations = [];
+              if (piiDetection.hasPII) violations.push(`PII: ${piiDetection.piiTypes.join(', ')}`);
+              if (hasInjection) violations.push('Injection pattern');
               return {
                 status: "block",
-                pattern: "Injection pattern detected"
+                pattern: violations.join(' + ')
               };
             }
 
@@ -1082,9 +1091,11 @@ DASHBOARD_HTML = """
         }
       }
 
-      // Reset UI
-      clearVisual();
-      executionLog.innerHTML = '';
+      // Reset UI (skip during batch to preserve progress)
+      if (!isBatchMode) {
+        clearVisual();
+        executionLog.innerHTML = '';
+      }
 
       // Show starting message (scenario number added automatically by appendLog)
       appendLog(`Starting: ${scenario.title}`);
