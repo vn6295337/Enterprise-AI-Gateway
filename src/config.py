@@ -465,10 +465,10 @@ DASHBOARD_HTML = """
     // Detect PII (Personally Identifiable Information) in prompts
     function detectPII(prompt) {
       const patterns = {
-        email: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/,
-        creditCard: /\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b/,
-        ssn: /\b\d{3}-\d{2}-\d{4}\b/,
-        taxId: /\b\d{2}-\d{7}\b/,
+        email: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/,
+        creditCard: /\\b\\d{4}[\\s-]?\\d{4}[\\s-]?\\d{4}[\\s-]?\\d{4}\\b/,
+        ssn: /\\b\\d{3}-\\d{2}-\\d{4}\\b/,
+        taxId: /\\b\\d{2}-\\d{7}\\b/,
         apiKey: /(sk|pk|api|bearer)[_-]?[a-zA-Z0-9]{20,}/i
       };
 
