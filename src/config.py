@@ -614,6 +614,95 @@ DASHBOARD_HTML = """
       };
       return stepNames[stepId] || stepId;
     }
+
+    function getDetailedStepMessage(stepId, status, context = {}) {
+      // Auth step messages
+      if (stepId === 'auth') {
+        if (status === 'running') {
+          const keyPreview = context.apiKey ? context.apiKey.substring(0, 15) + '...' : 'API key';
+          return `Verifying ${keyPreview}`;
+        }
+        if (status === 'pass') {
+          return 'Authentication successful ✓';
+        }
+        if (status === 'fail' || status === 'block') {
+          return '⚠️ Invalid API key';
+        }
+      }
+
+      // Input validation messages
+      if (stepId === 'input') {
+        if (status === 'running') {
+          const charCount = context.prompt ? context.prompt.length : 0;
+          const tokenLimit = context.maxTokens || 256;
+          return `Validating ${charCount} characters • ${tokenLimit} token limit`;
+        }
+        if (status === 'pass') {
+          return 'Request parameters OK ✓';
+        }
+        if (status === 'fail' || status === 'block') {
+          if (context.reason === 'empty prompt') {
+            return '⚠️ Rejected: Empty prompt';
+          }
+          return '⚠️ Invalid request parameters';
+        }
+      }
+
+      // Injection check messages
+      if (stepId === 'injection') {
+        if (status === 'running') {
+          return 'Scanning for attack patterns...';
+        }
+        if (status === 'pass') {
+          return 'Security scan complete • No threats ✓';
+        }
+        if (status === 'fail' || status === 'block') {
+          if (context.pattern) {
+            return `⚠️ Blocked: Injection detected ("${context.pattern}")`;
+          }
+          return '⚠️ Blocked: Security threat detected';
+        }
+      }
+
+      // Router messages (handled separately in fallback)
+      if (stepId === 'router') {
+        if (status === 'running' && context.provider) {
+          const providerNum = context.attemptNum || 1;
+          const label = providerNum === 1 ? 'primary' : `backup #${providerNum - 1}`;
+          return `Trying ${context.provider} (${label})`;
+        }
+        if (status === 'pass' && context.provider) {
+          const latency = context.latency || '~100';
+          return `Connected to ${context.provider} • ${latency}ms ✓`;
+        }
+        if (status === 'fail' && context.provider) {
+          return `${context.provider} ${context.reason || 'unavailable'}`;
+        }
+      }
+
+      // Provider/Inferencing messages
+      if (stepId === 'provider') {
+        if (status === 'running') {
+          const tokens = context.maxTokens || 256;
+          const provider = context.provider || 'AI';
+          return `Generating response • ${provider} (${tokens} tokens)`;
+        }
+        if (status === 'pass') {
+          const used = context.tokensUsed || 0;
+          const max = context.maxTokens || 256;
+          return `Response ready • ${used}/${max} tokens used ✓`;
+        }
+        if (status === 'fail') {
+          if (context.reason === 'rate_limit_exceeded') {
+            return '⚠️ Rate limit: 10/10 requests used';
+          }
+          return '⚠️ Service unavailable';
+        }
+      }
+
+      // Fallback to simple message
+      return getUserFriendlyStepName(stepId) + (status === 'running' ? '...' : status === 'pass' ? ' ✓' : '');
+    }
     
     function addCommentary(text) {
       const div = document.createElement('div');
@@ -746,17 +835,26 @@ DASHBOARD_HTML = """
         // Execute action first to check if it's a fallback scenario
         const result = step.action();
 
+        // Build context for detailed messages
+        const context = {
+          apiKey: scenario.apiKey,
+          prompt: scenario.prompt,
+          maxTokens: scenario.maxTokens,
+          pattern: result.pattern,
+          reason: result.reason
+        };
+
         // For fallback scenarios, skip initial provider visual (router will handle it)
         if (result.status !== 'fallback') {
           updatePipelineVisual(step.id, 'running');
-          appendLog(getUserFriendlyStepName(step.id) + '...');
+          appendLog(getDetailedStepMessage(step.id, 'running', context));
           await new Promise(r => setTimeout(r, 1200));
         }
 
         if (result.status === 'pass') {
           updatePipelineVisual(step.id, 'pass');
           if (scenario.explain?.pass) addCommentary(scenario.explain.pass);
-          appendLog(getUserFriendlyStepName(step.id) + ' ✓');
+          appendLog(getDetailedStepMessage(step.id, 'pass', context));
           lastRunData.steps.push({id: step.id, status: 'pass'});
           // Allow time for connector line animation to complete
           await new Promise(r => setTimeout(r, 600));
@@ -768,7 +866,7 @@ DASHBOARD_HTML = """
             const commentaryText = typeof failCommentary === 'function' ? failCommentary(result.pattern || result.reason) : failCommentary;
             addCommentary(commentaryText);
           }
-          appendLog('⚠️ Request blocked for security');
+          appendLog(getDetailedStepMessage(step.id, 'block', context));
           lastRunData.steps.push({id: step.id, status: 'blocked', reason: result.pattern||result.reason});
           // blocked: no provider call; mark tokens consumed = 0; saved = maxTokens
           lastRunData.tokensConsumed = 0;
@@ -790,13 +888,19 @@ DASHBOARD_HTML = """
           // Router activates once per provider attempt
 
           lastRunData.steps.push({id: step.id, status: 'fallback', path: result.path});
+          let attemptNum = 0;
           for (const p of result.path) {
             const [provider, outcome] = p.split(':');
             const providerName = provider.charAt(0).toUpperCase() + provider.slice(1);
+            attemptNum++;
 
             // Router activates for this provider attempt
             updatePipelineVisual('router', 'running');
-            appendLog(`Trying ${providerName}...`);
+            const routerContext = {
+              provider: providerName,
+              attemptNum: attemptNum
+            };
+            appendLog(getDetailedStepMessage('router', 'running', routerContext));
             await new Promise(r => setTimeout(r, 1000));
 
             // Light up the provider badge
@@ -810,7 +914,11 @@ DASHBOARD_HTML = """
             if (outcome === 'timeout' || outcome === 'fail') {
               // Provider failed - deactivate router and try next
               addCommentary(`Attempting ${providerName}... ${outcome === 'timeout' ? 'Timeout' : 'Failed'}.`);
-              appendLog(`${providerName} unavailable, trying another...`);
+              const failContext = {
+                provider: providerName,
+                reason: outcome === 'timeout' ? 'timeout (>5s)' : 'failed'
+              };
+              appendLog(getDetailedStepMessage('router', 'fail', failContext) + ', trying next...');
               // Deactivate router (go back to inactive state)
               const routerNode = document.getElementById('step-router');
               if (routerNode) {
@@ -821,17 +929,25 @@ DASHBOARD_HTML = """
             } else if (outcome === 'success') {
               // Provider succeeded - router passes, then show inferencing
               addCommentary(`Attempting ${providerName}... Success!`);
-              appendLog(`Connected to ${providerName} ✓`);
+              const latency = provider==='groq'?87:(provider==='gemini'?120:200);
+              const passContext = {
+                provider: providerName,
+                latency: latency
+              };
+              appendLog(getDetailedStepMessage('router', 'pass', passContext));
               updatePipelineVisual('router', 'pass');
               await new Promise(r => setTimeout(r, 800));
 
               // Now show inferencing (provider step)
               updatePipelineVisual('provider', 'running');
-              appendLog(`Generating your response...`);
+              const inferenceContext = {
+                provider: providerName,
+                maxTokens: scenario.maxTokens
+              };
+              appendLog(getDetailedStepMessage('provider', 'running', inferenceContext));
               await new Promise(r => setTimeout(r, 1200));
 
               // Inferencing complete
-              updatePipelineVisual('provider', 'pass', { provider: provider });
               lastRunData.provider = provider;
               lastRunData.latency = provider==='groq'?87:(provider==='gemini'?120:200);
               // tokens consumed: estimate from prompt token count (used) + a small generation cost
@@ -840,6 +956,15 @@ DASHBOARD_HTML = """
               const consumed = Math.min(scenario.maxTokens, promptUsed + generated);
               lastRunData.tokensConsumed = consumed;
               lastRunData.tokensSaved = Math.max(0, scenario.maxTokens - consumed);
+
+              // Update visual and show completion message with token usage
+              const completeContext = {
+                tokensUsed: Math.round(consumed),
+                maxTokens: scenario.maxTokens
+              };
+              appendLog(getDetailedStepMessage('provider', 'pass', completeContext));
+              updatePipelineVisual('provider', 'pass', { provider: provider });
+
               metricProvider.textContent = provider.toUpperCase();
               metricLatency.textContent = lastRunData.latency + ' ms';
               metricTokens.innerHTML = `${lastRunData.tokensConsumed}/<span id="metric-tokens-max">${scenario.maxTokens}</span>`;
@@ -859,7 +984,7 @@ DASHBOARD_HTML = """
           lastRunData.steps.push({id: step.id, status: 'skipped'});
         } else {
           updatePipelineVisual(step.id, 'pass');
-          appendLog(getUserFriendlyStepName(step.id) + ' ✓');
+          appendLog(getDetailedStepMessage(step.id, 'pass', context));
         }
       }
 
