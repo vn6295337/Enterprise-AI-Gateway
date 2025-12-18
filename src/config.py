@@ -1174,7 +1174,7 @@ DASHBOARD_HTML = """
           metricTokens.innerHTML = `${lastRunData.tokensConsumed}/<span id="metric-tokens-max">${scenario.maxTokens}</span>`;
           metricTokensSaved.textContent = lastRunData.tokensSaved;
           // Highlight metrics to show savings
-          highlightElement('.card:has(#metric-latency)', 'pulse');
+          highlightElement('#metric-latency', 'pulse');
           addCommentary(`Request terminated. Zero resources consumed.`);
           addCommentary('Tokens saved: ' + scenario.maxTokens + ' (~$' + (scenario.maxTokens * 0.00003).toFixed(4) + ')');
           metricProvider.textContent = '---';
@@ -1286,7 +1286,7 @@ DASHBOARD_HTML = """
               metricTokensSaved.textContent = Math.round(lastRunData.tokensSaved);
               metricRate.textContent = '7/10';
               // Highlight metrics on success
-              highlightElement('.card:has(#metric-latency)', 'pulse');
+              highlightElement('#metric-latency', 'pulse');
               addCommentary(`Response received in ${lastRunData.latency}ms.`);
               addCommentary(`Zero downtime for end users.`);
 
