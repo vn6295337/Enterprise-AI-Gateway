@@ -1,5 +1,6 @@
 """
 Configuration for the LLM Secure Gateway
+Last updated: 2025-12-18 16:05 IST
 """
 
 import os
