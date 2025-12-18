@@ -1051,6 +1051,8 @@ DASHBOARD_HTML = """
       if (scenarioKey === 'injection') {
         const injectionStep = scenario.steps.find(s => s.id === 'injection');
         if (injectionStep) {
+          // Capture prompt value in closure to avoid variable reference bug
+          const capturedPrompt = promptToUse;
           injectionStep.action = () => {
             // Check for prompt injection patterns
             const injectionPatterns = [
@@ -1061,10 +1063,10 @@ DASHBOARD_HTML = """
             ];
 
             // Check for PII patterns
-            const piiDetection = detectPII(promptToUse);
+            const piiDetection = detectPII(capturedPrompt);
 
             // Check for injection patterns
-            const hasInjection = injectionPatterns.some(pattern => pattern.test(promptToUse));
+            const hasInjection = injectionPatterns.some(pattern => pattern.test(capturedPrompt));
 
             // Determine block reason and increment metrics (additive)
             if (piiDetection.hasPII) {
