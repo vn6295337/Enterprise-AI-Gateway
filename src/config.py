@@ -668,8 +668,12 @@ DASHBOARD_HTML = """
     
     // Utility functions
     function appendLog(message) {
+      // Add scenario number prefix in batch mode
+      const prefix = isBatchMode ? `[SCENARIO ${currentScenarioNum}/2] ` : '';
+      const fullMessage = prefix + message;
+
       // Replace content with current step, displayed prominently
-      executionLog.innerHTML = `<div class="text-sm text-slate-300 font-medium">${message}</div>`;
+      executionLog.innerHTML = `<div class="text-sm text-slate-300 font-medium">${fullMessage}</div>`;
     }
 
     function getUserFriendlyStepName(stepId) {
@@ -858,31 +862,35 @@ DASHBOARD_HTML = """
       setTimeout(() => el.classList.remove(`${type}-highlight`), 1000);
     }
 
-    // Display batch metrics table
-    function displayBatchMetricsTable(startMetrics) {
+    // Display batch metrics table in status area
+    function displayBatchMetricsInStatus(startMetrics) {
       const failuresInBatch = sessionMetrics.modelFailures - startMetrics.modelFailures;
       const downtimeInBatch = sessionMetrics.downtimePrevented - startMetrics.downtimePrevented;
       const modelsTestedInBatch = sessionMetrics.uniqueModels.size - startMetrics.uniqueModels;
 
-      addCommentary('');
-      addCommentary('═'.repeat(60));
-      addCommentary('[SUMMARY] BATCH RESILIENCE TEST RESULTS');
-      addCommentary('═'.repeat(60));
-      addCommentary('');
-      addCommentary('┌──────────────────────────────────────┬──────────────┐');
-      addCommentary('│ Metric                               │ Value        │');
-      addCommentary('├──────────────────────────────────────┼──────────────┤');
-      addCommentary(`│ Scenarios Executed                   │ 10           │`);
-      addCommentary(`│ Model Failures Handled               │ ${String(failuresInBatch).padStart(12)} │`);
-      addCommentary(`│ Unique Models Tested                 │ ${String(modelsTestedInBatch).padStart(12)} │`);
-      addCommentary(`│ Downtime Prevented                   │ ${String(downtimeInBatch + ' min').padStart(12)} │`);
-      addCommentary(`│ System Reliability                   │ 100%         │`);
-      addCommentary('└──────────────────────────────────────┴──────────────┘');
-      addCommentary('');
-      addCommentary('═'.repeat(60));
+      // Build metrics table HTML
+      const metricsHTML = `
+        <div class="text-sm text-slate-300">
+          <div class="mb-2 text-center font-bold">[SUMMARY] BATCH RESILIENCE TEST RESULTS</div>
+          <div class="font-mono text-xs">
+            <div>┌──────────────────────────────────────┬──────────────┐</div>
+            <div>│ Metric                               │ Value        │</div>
+            <div>├──────────────────────────────────────┼──────────────┤</div>
+            <div>│ Scenarios Executed                   │ 2            │</div>
+            <div>│ Model Failures Handled               │ ${String(failuresInBatch).padStart(12)} │</div>
+            <div>│ Unique Models Tested                 │ ${String(modelsTestedInBatch).padStart(12)} │</div>
+            <div>│ Downtime Prevented                   │ ${String(downtimeInBatch + ' min').padStart(12)} │</div>
+            <div>│ System Reliability                   │ 100%         │</div>
+            <div>└──────────────────────────────────────┴──────────────┘</div>
+          </div>
+        </div>
+      `;
+
+      // Display in execution log (status area)
+      executionLog.innerHTML = metricsHTML;
     }
 
-    // Batch resilience test - runs 10 scenarios sequentially
+    // Batch resilience test - runs 2 scenarios with different prompts
     async function runBatchResilienceTest() {
       // Capture metrics at start of batch
       const batchStartMetrics = {
@@ -891,26 +899,32 @@ DASHBOARD_HTML = """
         downtimePrevented: sessionMetrics.downtimePrevented
       };
 
+      // Define 2 different prompts for scenarios
+      const scenarioPrompts = [
+        "Explain the benefits of using a secure LLM gateway in enterprise applications.",
+        "Describe how multi-provider fallback ensures zero downtime in production systems."
+      ];
+
       // Display initiation message
       commentaryFeed.innerHTML = '';
       addCommentary('═'.repeat(60));
-      addCommentary('[INIT] INITIATING 10 FAILURE SCENARIOS');
+      addCommentary('[INIT] INITIATING 2 FAILURE SCENARIOS');
       addCommentary('═'.repeat(60));
       await new Promise(r => setTimeout(r, 1500));
 
       // Enable batch mode
       isBatchMode = true;
 
-      // Run 10 scenarios sequentially
-      for (let i = 1; i <= 10; i++) {
+      // Run 2 scenarios sequentially
+      for (let i = 1; i <= 2; i++) {
         currentScenarioNum = i;
 
         // Show progress header
         addCommentary('');
-        addCommentary(`> SCENARIO ${i}/10`);
+        addCommentary(`> SCENARIO ${i}/2`);
 
-        // Execute scenario
-        await runScenario('normal');
+        // Execute scenario with custom prompt
+        await runScenario('normal', scenarioPrompts[i - 1]);
 
         // Pause between scenarios for readability
         await new Promise(r => setTimeout(r, 2000));
@@ -920,32 +934,37 @@ DASHBOARD_HTML = """
       isBatchMode = false;
       currentScenarioNum = 0;
 
-      // Display final metrics table
-      displayBatchMetricsTable(batchStartMetrics);
+      // Display final metrics table in status area
+      displayBatchMetricsInStatus(batchStartMetrics);
     }
 
     // Scenario runner
-    async function runScenario(scenarioKey) {
+    async function runScenario(scenarioKey, customPrompt = null) {
       const scenario = SCENARIOS[scenarioKey];
       if (!scenario) return;
-      
+
+      // Use custom prompt if provided, otherwise use scenario prompt
+      const promptToUse = customPrompt || scenario.prompt;
+
       // Reset UI
       clearVisual();
       executionLog.innerHTML = '';
+
+      // Show starting message (scenario number added automatically by appendLog)
       appendLog(`Starting: ${scenario.title}`);
-      
+
       // Update inputs
-      document.getElementById('input-prompt').value = scenario.prompt;
+      document.getElementById('input-prompt').value = promptToUse;
       document.getElementById('input-api').value = scenario.apiKey;
       document.getElementById('input-max-tokens').value = scenario.maxTokens;
       document.getElementById('input-temp').value = scenario.temperature;
       metricTokensMax.textContent = scenario.maxTokens;
-      
+
       // Initialize run data
       lastRunData = {
         scenario: scenarioKey,
         title: scenario.title,
-        prompt: scenario.prompt,
+        prompt: promptToUse,
         maxTokens: scenario.maxTokens,
         temperature: scenario.temperature,
         steps: [],
@@ -1134,7 +1153,7 @@ DASHBOARD_HTML = """
                 // Display completion message based on mode
                 if (isBatchMode) {
                   // In batch mode: simple completion message
-                  addCommentary(`+ Scenario ${currentScenarioNum}/10 Complete`);
+                  addCommentary(`+ Scenario ${currentScenarioNum}/2 Complete`);
                 } else {
                   // Single scenario mode: detailed metrics
                   addCommentary('─'.repeat(50));
