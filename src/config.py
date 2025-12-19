@@ -118,6 +118,11 @@ DASHBOARD_HTML = """
       background: #071028;
       overflow: hidden; /* Fixes Point 2: Clips child elements to the rounded corners */
     }
+
+    /* Hide metrics and commentary panels */
+    .hide-metrics-commentary {
+      display: none !important;
+    }
     
     /* ===== GRID-BASED LAYOUT BALANCE ===== */
     /* Feature cards: 4 equal columns for horizontal status bar */
@@ -307,8 +312,8 @@ DASHBOARD_HTML = """
         </div>
       </div>
 
-      <!-- Metrics & Commentary (50% - 2 columns) -->
-      <div class="lg:col-span-2 space-y-2">
+      <!-- Metrics & Commentary (50% - 2 columns) - HIDDEN -->
+      <div class="lg:col-span-2 space-y-2 hide-metrics-commentary">
         <!-- Metrics HUD -->
         <div class="card p-2">
           <h2 class="font-medium text-xs mb-1.5">Security Metrics</h2>
