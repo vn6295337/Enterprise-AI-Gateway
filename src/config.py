@@ -253,7 +253,7 @@ DASHBOARD_HTML = """
         </div>
       </div>
 
-      <!-- REQUEST LIFECYCLE – Vertical, Compact -->
+      <!-- REQUEST LIFECYCLE – Vertical, Labels Left -->
       <div class="lg:col-span-2">
         <div class="card p-2 relative overflow-hidden">
           <div class="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10"></div>
@@ -261,54 +261,58 @@ DASHBOARD_HTML = """
           <div class="relative z-10 flex gap-3">
 
             <!-- Vertical Lifecycle -->
-            <div class="flex flex-col items-center justify-start">
+            <div class="flex flex-col justify-start" style="min-width: 120px;">
 
               <!-- Auth -->
-              <div id="step-auth" class="flex flex-col items-center opacity-50" style="width:60px;">
-                <div class="w-10 h-10 rounded-md border-2 border-slate-700 bg-slate-900 flex items-center justify-center mb-1">
-                  <span style="font-size:20px;">🔑</span>
+              <div id="step-auth" class="flex items-center gap-2 opacity-50">
+                <span class="text-xs uppercase tracking-wider text-slate-500 w-12 text-right">Auth</span>
+                <div class="w-6 h-6 rounded border border-slate-700 bg-slate-900 flex items-center justify-center" style="padding:2px;">
+                  <span style="font-size:18px;line-height:1;">🔑</span>
                 </div>
-                <span class="text-micro uppercase tracking-wider text-slate-500">Auth</span>
               </div>
 
-              <div class="h-4 w-0.5 bg-slate-800 my-1 relative">
-                <div id="line-1" class="absolute top-0 left-0 w-full h-0 bg-blue-500 transition-all duration-500"></div>
+              <!-- Arrow 1 -->
+              <div class="flex justify-center opacity-0" id="arrow-1" style="height:8px;">
+                <span class="flow-arrow text-blue-500" style="font-size:10px;">▼</span>
               </div>
 
               <!-- Guard -->
-              <div id="step-guard" class="flex flex-col items-center opacity-50" style="width:60px;">
-                <div class="w-10 h-10 rounded-md border-2 border-slate-700 bg-slate-900 flex items-center justify-center mb-1">
-                  <span style="font-size:20px;">🛡️</span>
+              <div id="step-guard" class="flex items-center gap-2 opacity-50">
+                <span class="text-xs uppercase tracking-wider text-slate-500 w-12 text-right">Guard</span>
+                <div class="w-6 h-6 rounded border border-slate-700 bg-slate-900 flex items-center justify-center" style="padding:2px;">
+                  <span style="font-size:18px;line-height:1;">🛡️</span>
                 </div>
-                <span class="text-micro uppercase tracking-wider text-slate-500">Guard</span>
               </div>
 
-              <div class="h-4 w-0.5 bg-slate-800 my-1 relative">
-                <div id="line-2" class="absolute top-0 left-0 w-full h-0 bg-blue-500 transition-all duration-500"></div>
+              <!-- Arrow 2 -->
+              <div class="flex justify-center opacity-0" id="arrow-2" style="height:8px;">
+                <span class="flow-arrow text-blue-500" style="font-size:10px;">▼</span>
               </div>
 
               <!-- Router -->
-              <div id="step-router" class="flex flex-col items-center opacity-50" style="width:60px;">
-                <div class="w-10 h-10 rounded-md border-2 border-slate-700 bg-slate-900 flex items-center justify-center mb-1">
-                  <span style="font-size:20px;">🔀</span>
+              <div id="step-router" class="flex items-center gap-2 opacity-50">
+                <span class="text-xs uppercase tracking-wider text-slate-500 w-12 text-right">Route</span>
+                <div class="w-6 h-6 rounded border border-slate-700 bg-slate-900 flex items-center justify-center" style="padding:2px;">
+                  <span style="font-size:18px;line-height:1;">🔀</span>
                 </div>
-                <span class="text-micro uppercase tracking-wider text-slate-500">Route</span>
               </div>
 
-              <div class="h-4 w-0.5 bg-slate-800 my-1 relative">
-                <div id="line-3" class="absolute top-0 left-0 w-full h-0 bg-blue-500 transition-all duration-500"></div>
+              <!-- Arrow 3 -->
+              <div class="flex justify-center opacity-0" id="arrow-3" style="height:8px;">
+                <span class="flow-arrow text-blue-500" style="font-size:10px;">▼</span>
               </div>
 
               <!-- Inference -->
-              <div id="step-llm" class="flex flex-col items-center opacity-50" style="width:60px;">
-                <div class="w-10 h-10 rounded-md border-2 border-slate-700 bg-slate-900 flex items-center justify-center mb-1 relative">
-                  <span style="font-size:20px;">⚙</span>
+              <div id="step-llm" class="flex items-center gap-2 opacity-50">
+                <span class="text-xs uppercase tracking-wider text-slate-500 w-12 text-right">Infer</span>
+                <div class="w-6 h-6 rounded border border-slate-700 bg-slate-900 flex items-center justify-center relative" style="padding:2px;">
+                  <span style="font-size:18px;line-height:1;">⚙</span>
                   <div id="active-provider-badge"
-                       class="absolute -top-1 -right-1 bg-green-500 text-black text-micro px-1 rounded font-bold hidden">
+                       class="absolute -top-1 -right-1 bg-green-500 text-black px-1 rounded font-bold hidden"
+                       style="font-size:7px;">
                     GROQ
                   </div>
                 </div>
-                <span class="text-micro uppercase tracking-wider text-slate-500">Infer</span>
               </div>
             </div>
 
@@ -700,22 +704,22 @@ DASHBOARD_HTML = """
      * @param {object} metadata - Optional extra data (provider name, error msg)
      */
     function updatePipelineVisual(stepId, status, metadata = {}) {
-      // Map steps to their specific DOM elements
+      // Map steps to their specific DOM elements (now using arrows instead of lines)
       const steps = {
-        'auth':   { node: document.getElementById('step-auth'),   line: document.getElementById('line-1') },
-        'input':  { node: document.getElementById('step-guard'),  line: document.getElementById('line-2') }, // Mapped 'input' -> 'guard' visual
-        'injection': { node: document.getElementById('step-guard'), line: document.getElementById('line-2') }, // Injection is part of Guard visual
-        'router': { node: document.getElementById('step-router'), line: document.getElementById('line-3') },
-        'provider': { node: document.getElementById('step-llm'),  line: null }
+        'auth':   { node: document.getElementById('step-auth'),   arrow: document.getElementById('arrow-1') },
+        'input':  { node: document.getElementById('step-guard'),  arrow: document.getElementById('arrow-2') }, // Mapped 'input' -> 'guard' visual
+        'injection': { node: document.getElementById('step-guard'), arrow: document.getElementById('arrow-2') }, // Injection is part of Guard visual
+        'router': { node: document.getElementById('step-router'), arrow: document.getElementById('arrow-3') },
+        'provider': { node: document.getElementById('step-llm'),  arrow: null }
       };
 
       const target = steps[stepId];
       if (!target || !target.node) return;
 
-      // 1. STATE: RUNNING (Flash the node)
+      // 1. STATE: RUNNING (Pulse the node)
       if (status === 'running') {
         target.node.classList.remove('opacity-50');
-        target.node.classList.add('active', 'flash-highlight');
+        target.node.classList.add('active', 'pulse-highlight');
 
         // If it's the Guard node, ensure it's not red from previous run
         const iconBox = target.node.querySelector('div');
@@ -723,24 +727,25 @@ DASHBOARD_HTML = """
         iconBox.classList.add('border-blue-500');
       }
 
-      // 2. STATE: PASS (Fill the line downward to the next node)
+      // 2. STATE: PASS (Show arrow with pulse glow)
       else if (status === 'pass') {
-        target.node.classList.remove('flash-highlight');
+        target.node.classList.remove('pulse-highlight');
         // Solidify the active state
         const iconBox = target.node.querySelector('div');
         iconBox.classList.add('bg-slate-800', 'border-blue-400');
 
-        // Fill the connecting line downward with delay for proper sequencing
-        if (target.line) {
+        // Show the arrow with pulse animation
+        if (target.arrow) {
           setTimeout(() => {
-            target.line.style.height = '100%';
+            target.arrow.classList.remove('opacity-0');
+            target.arrow.classList.add('opacity-100', 'pulse-highlight');
           }, 400);
         }
       }
 
-      // 3. STATE: BLOCKED (Turn Red, Stop Line)
+      // 3. STATE: BLOCKED (Turn Red, Hide Arrow)
       else if (status === 'block' || status === 'fail') {
-        target.node.classList.remove('flash-highlight');
+        target.node.classList.remove('pulse-highlight');
 
         // Turn the icon box RED
         const iconBox = target.node.querySelector('div');
@@ -751,10 +756,10 @@ DASHBOARD_HTML = """
         const iconText = iconBox.querySelector('span');
         if(iconText) iconText.innerText = '🚫';
 
-        // DO NOT fill the line. The flow stops here.
-        if (target.line) {
-          target.line.style.height = '0%';
-          target.line.classList.add('bg-red-500'); // Turn the nub red
+        // DO NOT show the arrow. The flow stops here.
+        if (target.arrow) {
+          target.arrow.classList.add('opacity-0');
+          target.arrow.classList.remove('opacity-100', 'pulse-highlight');
         }
       }
 
@@ -771,10 +776,13 @@ DASHBOARD_HTML = """
 
     // Helper to reset the visuals before a new run
     function clearPipelineVisuals() {
-      // Reset Lines (vertical)
-      ['line-1', 'line-2', 'line-3'].forEach(id => {
+      // Reset Arrows
+      ['arrow-1', 'arrow-2', 'arrow-3'].forEach(id => {
         const el = document.getElementById(id);
-        if(el) { el.style.height = '0%'; el.classList.remove('bg-red-500'); }
+        if(el) {
+          el.classList.add('opacity-0');
+          el.classList.remove('opacity-100', 'pulse-highlight');
+        }
       });
 
       // Reset Nodes
