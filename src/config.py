@@ -1777,7 +1777,7 @@ DASHBOARD_HTML = """
       commentaryFeed.innerHTML = '<div class="text-slate-400">Select a scenario to see security analysis...</div>';
 
       // Reset button visual state
-      const btn = document.querySelector(\`button[data-scenario="\${scenarioKey}"]\`);
+      const btn = document.querySelector(`button[data-scenario="${scenarioKey}"]`);
       if (btn) {
         btn.classList.remove('bg-blue-600', 'hover:bg-blue-500');
         btn.classList.add('bg-slate-700/50', 'hover:bg-slate-600');
