@@ -678,10 +678,10 @@ DASHBOARD_HTML = """
       complex: {
         prompt: "Our enterprise SaaS platform is experiencing 22% customer churn among mid-market accounts ($50K-$200K ARR) despite maintaining 98% uptime and 4.8/5 support ratings. Competitors have launched AI-powered features while we've prioritized stability and compliance certifications (SOC 2, HIPAA). The board wants immediate action to reverse churn, but engineering warns that rushing AI features could compromise our core security value proposition and alienate our risk-averse enterprise clients. Analyze this situation considering: (1) short-term revenue impact versus long-term market positioning, (2) resource allocation between product innovation and operational excellence, (3) competitive landscape evolution over 18 months, (4) customer segment differences in feature adoption patterns, and (5) potential partnership opportunities to accelerate AI capabilities. Provide a strategic recommendation with quarterly milestones, investment requirements, and risk mitigation strategies for each stakeholder group.",
         expectedTokens: 600,
-        optimalModel: "GPT-4 Turbo",
-        optimalTTFT: 941,
+        optimalModel: "Gemini 2.0 Pro",
+        optimalTTFT: 550,
         industryAvgTTFT: 653,
-        description: "Strategic executive decision",
+        description: "Document summarization",
         requestsPerDay: 50
       }
     };
@@ -1250,7 +1250,7 @@ DASHBOARD_HTML = """
       const results = [];
       const scenarios = [
         { key: 'simple', name: 'Quick Business Insight' },
-        { key: 'complex', name: 'Strategic Executive Decision' }
+        { key: 'complex', name: 'Document Summarization' }
       ];
 
       // Run 2 performance scenarios sequentially
