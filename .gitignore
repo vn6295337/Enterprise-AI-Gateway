@@ -1,0 +1,18 @@
+# Ignore virtual environment
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+.idea/
+.vscode/
+.env
+*.env
+build/
+dist/
+*.egg-info/
+test_*.html
+*.json
+.docs/
+*.backup
