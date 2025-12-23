@@ -239,13 +239,15 @@ class ToxicityRequest(BaseModel):
 @router.post("/check-toxicity")
 async def check_toxicity(request: ToxicityRequest):
     """
-    Check text for toxic content using Perspective API.
+    Check text for toxic content using AI safety classification.
     Returns toxicity scores and blocked categories.
     """
     result = detect_toxicity(request.text)
+    # Sanitize error - don't expose internal details to users
+    has_error = result["error"] is not None
     return {
         "is_toxic": result["is_toxic"],
         "scores": result["scores"],
         "blocked_categories": result["blocked_categories"],
-        "error": result["error"]
+        "error": "Safety check encountered an issue" if has_error else None
     }
