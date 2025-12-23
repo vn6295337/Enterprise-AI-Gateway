@@ -8,13 +8,13 @@ import sys
 import os
 
 # Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 class TestSecurity(unittest.TestCase):
-    
+
     def test_detect_prompt_injection(self):
         """Test prompt injection detection"""
-        from security import detect_prompt_injection
+        from src.security import detect_prompt_injection
         
         # Test cases that should be detected as injection
         injection_prompts = [
@@ -42,11 +42,48 @@ class TestSecurity(unittest.TestCase):
                 self.assertFalse(detect_prompt_injection(prompt), 
                                f"Should NOT detect injection in: {prompt}")
 
+    def test_detect_pii(self):
+        """Test PII detection"""
+        from src.security import detect_pii
+
+        # Test cases that should detect PII
+        pii_prompts = [
+            ("My email is john@example.com", ["email"]),
+            ("Card number: 4532-1234-5678-9010", ["credit_card"]),
+            ("My SSN is 123-45-6789", ["ssn"]),
+            ("Tax ID: 12-3456789", ["tax_id"]),
+            ("Use sk_abcdefghij12345678901234", ["api_key"]),
+            ("Email me at test@test.com with card 1234-5678-9012-3456", ["email", "credit_card"]),
+        ]
+
+        for prompt, expected_types in pii_prompts:
+            with self.subTest(prompt=prompt):
+                result = detect_pii(prompt)
+                self.assertTrue(result["has_pii"],
+                              f"Should detect PII in: {prompt}")
+                for pii_type in expected_types:
+                    self.assertIn(pii_type, result["pii_types"],
+                                f"Should detect {pii_type} in: {prompt}")
+
+        # Test cases that should NOT detect PII
+        clean_prompts = [
+            "What is the weather like today?",
+            "Explain quantum computing.",
+            "How does machine learning work?",
+        ]
+
+        for prompt in clean_prompts:
+            with self.subTest(prompt=prompt):
+                result = detect_pii(prompt)
+                self.assertFalse(result["has_pii"],
+                               f"Should NOT detect PII in: {prompt}")
+
+
 class TestModels(unittest.TestCase):
-    
+
     def test_query_request_validation(self):
         """Test QueryRequest model validation"""
-        from models import QueryRequest
+        from src.models import QueryRequest
         
         # Valid request
         valid_request = QueryRequest(

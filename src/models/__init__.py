@@ -12,10 +12,17 @@ class QueryRequest(BaseModel):
 
     @validator('prompt')
     def check_prompt_injection(cls, v):
-        from ..security.prompt_injection import detect_prompt_injection
+        from ..security import detect_prompt_injection
         if detect_prompt_injection(v):
             raise ValueError("Security Alert: Prompt injection pattern detected.")
         return v
+
+class CascadeStep(BaseModel):
+    provider: str
+    model: Optional[str] = None
+    status: str  # "success", "failed", "timeout"
+    reason: Optional[str] = None
+    latency_ms: int
 
 class QueryResponse(BaseModel):
     response: Optional[str]
@@ -23,6 +30,8 @@ class QueryResponse(BaseModel):
     latency_ms: int
     status: str
     error: Optional[str]
+    cascade_path: Optional[list] = None
+    cost_estimate_usd: Optional[float] = None
 
 class HealthResponse(BaseModel):
     status: str

@@ -91,7 +91,12 @@ class LLMClient:
             return None, f"Unknown LLM provider: {provider_name}"
 
     async def query_llm_cascade(self, prompt: str, max_tokens: int, temperature: float):
-        """Query LLM with cascade fallback across providers"""
+        """Query LLM with cascade fallback across providers
+
+        Returns: (response, provider_name, latency_ms, error, cascade_path)
+        """
+        cascade_path = []
+
         for provider in self.providers:
             print(f"Attempting with {provider['name']}...")
             start_time = time.perf_counter()
@@ -106,10 +111,25 @@ class LLMClient:
             latency_ms = int((time.perf_counter() - start_time) * 1000)
 
             if response_content:
-                return response_content, provider["name"], latency_ms, None
+                cascade_path.append({
+                    "provider": provider["name"],
+                    "model": provider["model"],
+                    "status": "success",
+                    "reason": None,
+                    "latency_ms": latency_ms
+                })
+                return response_content, provider["name"], latency_ms, None, cascade_path
             else:
+                cascade_path.append({
+                    "provider": provider["name"],
+                    "model": provider["model"],
+                    "status": "failed",
+                    "reason": error,
+                    "latency_ms": latency_ms
+                })
                 print(f"Provider {provider['name']} failed: {error}")
-        return None, None, 0, "All LLM providers failed."
+
+        return None, None, 0, "All LLM providers failed.", cascade_path
 
 # Instantiate the client (can be imported and used in app.py)
 llm_client = LLMClient()

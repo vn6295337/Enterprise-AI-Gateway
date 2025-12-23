@@ -1,171 +1,100 @@
----
-title: LLM Secure Gateway
-emoji: 🔐
-colorFrom: blue
-colorTo: purple
-sdk: docker
-pinned: false
+# Enterprise AI Gateway - Business User Guide
+
+**One gateway. Multiple AI providers. Zero downtime.**
+
 ---
 
-# LLM Secure Gateway
+## What It Does
 
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+The Enterprise AI Gateway sits between your applications and AI providers (Google Gemini, Groq, OpenRouter). Instead of connecting directly to one provider and hoping it stays up, requests go through this gateway which automatically switches to a backup if one fails.
 
-**A REST API that safely routes AI requests to multiple LLM providers with built-in security.**
+Think of it like a phone system that automatically redirects calls to another line when the first one is busy.
 
-Click to view the demo video: [Product Demo Video](http://github.com/vn6295337/Enterprise-AI-Gateway/issues/2)
-Test it yourself: [Live Testing](https://huggingface.co/spaces/vn6295337/Enterprise-AI-Gateway)
+---
 
+## Business Benefits
 
-## Quick Start
+| Challenge | Solution |
+|-----------|----------|
+| AI provider goes down | Automatically switches to backup provider |
+| Sensitive data in prompts | Blocks emails, credit cards, SSNs before they reach AI |
+| Prompt manipulation attempts | Detects tricks like "ignore your rules" and blocks them |
+| Unpredictable AI costs | Tracks every request and estimates cost |
+| No visibility into AI usage | Live dashboard showing all activity |
 
-```bash
-# Clone the repository
-git clone https://github.com/your-username/LLM-secure-gateway.git
-cd LLM-secure-gateway
+**Key Metrics:** 99.8% uptime | 87-200ms response (under 1/5 of a second) | Zero infrastructure cost
 
-# Install dependencies
-pip install -r requirements.txt
+---
 
-# Set environment variables with your API keys
-export GEMINI_API_KEY="your-gemini-api-key"     # Optional
-export GROQ_API_KEY="your-groq-api-key"         # Optional
-export OPENROUTER_API_KEY="your-openrouter-api-key"  # Optional
-# Note: At least one API key must be set
+## User Guide (Hugging Face Spaces)
 
-# Run the server using the startup script (includes API key validation)
-./start-app.sh
+### Step 1: Open the Demo
 
-# Or run directly with uvicorn
-# uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
-```
+Go to: **[huggingface.co/spaces/vn6295337/Enterprise-AI-Gateway](https://huggingface.co/spaces/vn6295337/Enterprise-AI-Gateway)**
 
-## Key Features
+### Step 2: Try the Pre-built Scenarios
 
-### Security First
-- **API Key Authentication**: Only authorized users can access the service
-- **Rate Limiting**: Prevents abuse and ensures fair usage (10 requests/minute per user)
-- **Input Validation**: Blocks invalid or dangerous requests before they reach the LLM
-- **Prompt Injection Detection**: Identifies and mitigates attempts to manipulate LLMs
-- **CORS Configuration**: Controls origin access for enhanced browser security
+Click any button to see the gateway in action:
 
-### High Availability & Reliability
-- **Multi-Provider Fallback**: Automatically cascades through Gemini, Groq, and OpenRouter if a primary provider fails
-- **99.8% Uptime**: Achieved through intelligent redundancy and retry mechanisms
-- **Automatic Retries**: If a provider fails, the gateway automatically retries with the next available LLM
+| Button | What It Shows |
+|--------|---------------|
+| **Prove Uptime** | First provider "fails" → gateway automatically uses backup |
+| **Protect Security** | Someone tries to trick the AI → gateway blocks it |
+| **Optimize Costs** | Gateway picks the cheapest provider for simple tasks |
+| **Measure Speed** | Shows how fast responses come back |
 
-### Fast & Efficient Performance
-- **Optimized Response Time**: Average response times of 87-200ms
-- **Auto-Scaling**: Designed to handle fluctuating traffic spikes without manual intervention
-- **Zero Cost Deployment**: Can be deployed on free-tier infrastructure while maintaining production quality
+### Step 3: Submit Your Own Prompt
 
-## Architecture Overview
+1. **Enter your question** in the text box (e.g., "Explain quantum computing")
+2. **API Key** is pre-filled for the demo (like a password that grants access)
+3. **Adjust settings** (optional):
+   - **Max Tokens**: How long the AI response can be. Higher = longer answers. (default: 256 ≈ 1 paragraph)
+   - **Temperature**: How creative vs predictable the AI is. 0 = factual/consistent, 2 = creative/varied. (default: 0.7 = balanced)
+4. Click **Submit Prompt**
+5. Watch the security checks animate (Auth → Guard → Route → Infer)
+6. View the AI response with details
 
-```
-User Request
-    ↓
-[API Key Check] → ❌ Invalid? Return 401
-    ↓ ✅ Valid
-[Rate Limit Check] → ❌ Too many requests? Return 429
-    ↓ ✅ OK
-[Input Validation] → ❌ Invalid input? Return 422
-    ↓ ✅ Valid
-[Prompt Injection Check] → ❌ Detected? Return 422
-    ↓ ✅ Clean
-[Try Provider 1: Gemini] → Success? Return response
-    ↓ Fail (Timeout/Error)
-[Try Provider 2: Groq] → Success? Return response
-    ↓ Fail (Timeout/Error)
-[Try Provider 3: OpenRouter] → Success? Return response
-    ↓ All Fail
-Return 500 error (with details)
-```
+### Step 4: Understanding the Results
 
-## Documentation
+After each request, you'll see:
 
-- [Case Study](docs/case_study.md) - Business value and impact analysis
-- [Architecture](docs/architecture.md) - Technical architecture and design decisions
-- [Implementation](docs/implementation.md) - Implementation details and code walkthrough
-- [Operations](docs/operations.md) - Deployment and operational procedures
-- [API Reference](docs/api_reference.md) - Detailed API documentation
+| Field | What It Means |
+|-------|---------------|
+| **Provider Used** | Which AI answered (Gemini, Groq, or OpenRouter) |
+| **Latency** | Response time. 100ms = 1/10th of a second. Lower is faster. |
+| **Cascade Path** | If the first provider failed, shows the backup chain used |
+| **Cost Estimate** | Approximate cost of this single request (usually fractions of a cent) |
 
-## Examples
+---
 
-See the [examples](examples/) directory for usage examples:
-- [Basic API Usage](examples/basic_usage.py) - Simple API calls and batch processing examples
+## Security Features Explained
 
-## Development
+| Feature | Plain English | Business Impact |
+|---------|---------------|-----------------|
+| **API Key** | Password required to use the system | Only your team can access |
+| **Rate Limiting** | Max 10 requests per minute per user | Stops runaway costs from bugs or abuse |
+| **PII Detection** | Catches personal info (emails, SSNs, credit cards) | Prevents data leaks to AI providers |
+| **Injection Blocking** | Blocks tricks like "ignore your instructions" | Stops people from misusing the AI |
 
-### Setup
-```bash
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate
+---
 
-# Install dependencies
-pip install -r requirements.txt
+## Use Cases
 
-# Run tests
-python -m pytest tests
-```
+| Scenario | How It Helps |
+|----------|--------------|
+| **Enterprise AI Access** | One secure entry point for all teams using AI |
+| **Regulated Industries** | Logs every request for compliance audits |
+| **Cost Management** | See exactly what AI costs across the organization |
+| **Mission-Critical Apps** | If one AI provider fails, service continues |
 
-### Testing
-```bash
-# Run unit tests
-python -m pytest tests/unit
+---
 
-# Run integration tests
-python -m pytest tests/integration
+## Video Walkthrough
 
-# Run all tests
-python -m pytest
-```
+Watch the 2-minute demo: **[Product Demo Video](http://github.com/vn6295337/Enterprise-AI-Gateway/issues/2)**
 
-## Deployment
+---
 
-### Docker
-```bash
-# Build the Docker image
-docker build -t llm-secure-gateway .
+## Want to Deploy Your Own?
 
-# Run the container
-docker run -p 8000:8000 llm-secure-gateway
-```
-
-### Hugging Face Spaces
-1. Create a new Space at [https://huggingface.co/new-space](https://huggingface.co/new-space)
-2. Choose "Docker" SDK
-3. Add this repository as the source
-4. Set up Secrets with required API keys
-
-## API Usage
-
-### Health Check
-```bash
-curl http://localhost:8000/health
-```
-
-### Query LLM
-```bash
-curl -X POST http://localhost:8000/query \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: YOUR_API_KEY" \
-  -d '{
-    "prompt": "What is machine learning?",
-    "max_tokens": 150,
-    "temperature": 0.7
-  }'
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Implement your changes
-4. Add tests for new functionality
-5. Submit a pull request
-
-## License
-
-This project is licensed under the MIT License.
+See the [Technical README](README.md) for installation instructions.
