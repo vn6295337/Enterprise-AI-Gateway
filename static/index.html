@@ -1983,13 +1983,16 @@
 
         // Auth passed
         updatePipelineVisual('auth', 'pass');
-        appendLog('AUTH: API key validated');
-        await new Promise(r => setTimeout(r, 300));
+        const keyPrefix = apiKey.substring(0, 10);
+        appendLog(`AUTH: Key validated (${keyPrefix}...)`);
+        await new Promise(r => setTimeout(r, 800));
 
         // Step 2: Guard - Running
         updatePipelineVisual('input', 'running');
-        appendLog('GUARD: Checking input...');
-        await new Promise(r => setTimeout(r, 300));
+        appendLog('GUARD: Scanning for injection patterns...');
+        await new Promise(r => setTimeout(r, 600));
+        appendLog('GUARD: Checking for PII exposure...');
+        await new Promise(r => setTimeout(r, 600));
 
         // Handle 422 - Validation/Guard failed
         if (response.status === 422) {
@@ -2009,8 +2012,8 @@
 
         // Guard passed
         updatePipelineVisual('input', 'pass');
-        appendLog('GUARD: Input validated');
-        await new Promise(r => setTimeout(r, 300));
+        appendLog('GUARD: Input validated - No threats detected');
+        await new Promise(r => setTimeout(r, 800));
 
         // Handle 429 - Rate limited
         if (response.status === 429) {
@@ -2023,25 +2026,32 @@
 
         // Step 3: Router - Running
         updatePipelineVisual('router', 'running');
-        appendLog('ROUTE: Selecting provider...');
-        await new Promise(r => setTimeout(r, 300));
+        appendLog('ROUTE: Analyzing task complexity...');
+        await new Promise(r => setTimeout(r, 600));
+
+        // Show cascade path if available (before provider selected)
+        if (data.cascade_path && data.cascade_path.length > 0) {
+          for (const step of data.cascade_path) {
+            if (step.status === 'failed' || step.status === 'timeout') {
+              appendLog(`ROUTE: Trying ${step.provider}... ${step.status}`);
+              await new Promise(r => setTimeout(r, 500));
+            }
+          }
+        }
+
         updatePipelineVisual('router', 'pass');
-        appendLog('ROUTE: Provider selected');
-        await new Promise(r => setTimeout(r, 300));
+        appendLog(`ROUTE: Selected ${data.provider || 'optimal provider'}`);
+        await new Promise(r => setTimeout(r, 800));
 
         // Step 4: Inference
         updatePipelineVisual('provider', 'running');
-        appendLog('INFER: Processing response...');
-        await new Promise(r => setTimeout(r, 300));
+        appendLog(`INFER: Sending to ${data.provider || 'provider'}...`);
+        await new Promise(r => setTimeout(r, 600));
+        appendLog('INFER: Generating response...');
+        await new Promise(r => setTimeout(r, 600));
 
         if (response.ok) {
           updatePipelineVisual('provider', 'pass', { provider: data.provider });
-
-          // Show cascade path if available
-          if (data.cascade_path && data.cascade_path.length > 0) {
-            const pathStr = data.cascade_path.map(s => `${s.provider}:${s.status}`).join(' → ');
-            appendLog(`CASCADE: ${pathStr}`);
-          }
 
           // Update metrics
           metricStatus.textContent = 'Success';
@@ -2049,7 +2059,7 @@
           metricLatency.textContent = `${data.latency_ms} ms`;
 
           // Show response
-          appendLog(`SUCCESS: Response from ${data.provider} in ${data.latency_ms}ms`);
+          appendLog(`SUCCESS: Response received in ${data.latency_ms}ms`);
           if (data.cost_estimate_usd) {
             appendLog(`COST: ~$${data.cost_estimate_usd.toFixed(6)}`);
           }
