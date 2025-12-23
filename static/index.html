@@ -227,12 +227,12 @@
                         class="w-full h-20 focus-ring text-xs p-2"
                         style="background: transparent !important; border: none !important; outline: none !important; box-shadow: none !important; border-radius: 8px !important;"
                         placeholder="Ask anything...">Explain quantum computing in simple terms</textarea>
-              <div class="token-badge" id="token-counter">~10 tokens</div>
+              <div class="token-badge" id="token-counter">4096 remaining</div>
             </div>
 
             <div class="flex items-center gap-3 text-compact small-muted flex-nowrap">
-              <span>Max Tokens: <input id="input-max-tokens" type="number" class="focus-ring rounded text-xs p-1 w-16 inline-block" value="256" min="1" max="2048"></span>
-              <span>Temperature: <input id="input-temp" type="number" class="focus-ring rounded text-xs p-1 w-16 inline-block" value="0.7" min="0" max="2" step="0.1"></span>
+              <span>Max Output Tokens: <input id="input-max-tokens" type="number" class="focus-ring rounded text-xs p-0.5 w-14 inline-block text-center" value="256" min="1" max="4096"></span>
+              <span>Temp: <input id="input-temp" type="number" class="focus-ring rounded text-xs p-0.5 w-12 inline-block text-center" value="0.7" min="0" max="2" step="0.1"></span>
 
               <button id="execute-custom"
                       class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded font-medium text-xs">
@@ -645,6 +645,27 @@
       injection: null,
       cost: null,
       performance: null
+    };
+
+    // Rate limiter for DDoS protection
+    const rateLimiter = {
+      requests: [],           // Timestamps of recent requests
+      maxRequests: 5,         // Max requests per window
+      windowMs: 60000,        // Time window (60 seconds)
+      check: function() {
+        const now = Date.now();
+        // Remove requests outside the window
+        this.requests = this.requests.filter(t => now - t < this.windowMs);
+        // Check if limit exceeded
+        if (this.requests.length >= this.maxRequests) {
+          const oldestRequest = this.requests[0];
+          const resetInSec = Math.ceil((this.windowMs - (now - oldestRequest)) / 1000);
+          return { allowed: false, resetInSec };
+        }
+        // Add current request
+        this.requests.push(now);
+        return { allowed: true, remaining: this.maxRequests - this.requests.length };
+      }
     };
 
     // Pause state tracking for pause/resume functionality
@@ -1952,6 +1973,33 @@
         return;
       }
 
+      // Rate limit check (DDoS protection)
+      const rateCheck = rateLimiter.check();
+      if (!rateCheck.allowed) {
+        updatePipelineVisual('auth', 'fail');
+        appendLog(`RATE LIMIT: Too many requests. Try again in ${rateCheck.resetInSec}s`);
+        appendLog(`RATE LIMIT: Max ${rateLimiter.maxRequests} requests per ${rateLimiter.windowMs / 1000}s window`);
+        metricStatus.textContent = 'Rate Limited';
+        lastRunData = { scenario: 'custom', final: 'error', error: 'Rate limit exceeded' };
+        return;
+      }
+      appendLog(`RATE LIMIT: Request allowed (${rateCheck.remaining} remaining)`);
+      await new Promise(r => setTimeout(r, 400));
+
+      // Token limit check
+      const MAX_INPUT_TOKENS = 4096;
+      const estimatedTokens = Math.ceil(customPrompt.length / 4);
+      if (estimatedTokens > MAX_INPUT_TOKENS) {
+        updatePipelineVisual('auth', 'fail');
+        appendLog(`TOKEN LIMIT: Input too long (~${estimatedTokens} tokens)`);
+        appendLog(`TOKEN LIMIT: Maximum allowed is ${MAX_INPUT_TOKENS} tokens`);
+        metricStatus.textContent = 'Rejected';
+        lastRunData = { scenario: 'custom', final: 'error', error: 'Input exceeds token limit' };
+        return;
+      }
+      appendLog(`TOKEN CHECK: ~${estimatedTokens} input tokens (max ${MAX_INPUT_TOKENS})`);
+      await new Promise(r => setTimeout(r, 400));
+
       // Step 1: Auth - Running (show while making API call)
       updatePipelineVisual('auth', 'running');
       appendLog('AUTH: Validating API key...');
@@ -1987,14 +2035,49 @@
         appendLog(`AUTH: Key validated (${keyPrefix}...)`);
         await new Promise(r => setTimeout(r, 800));
 
-        // Step 2: Guard - Running
+        // Step 2: Guard - Running (Client-side security checks)
         updatePipelineVisual('input', 'running');
         appendLog('GUARD: Scanning for injection patterns...');
         await new Promise(r => setTimeout(r, 600));
+
+        // Check for prompt injection patterns
+        const injectionPatterns = [
+          /ignore\s+(all\s+)?(previous|above|prior)\s+instructions?/i,
+          /disregard\s+(all\s+)?(previous|above|prior)\s+instructions?/i,
+          /you\s+are\s+now/i,
+          /system\s*:\s*/i,
+          /delete\s+(all|the|my)/i,
+          /drop\s+table/i,
+          /execute\s+command/i
+        ];
+        const hasInjection = injectionPatterns.some(pattern => pattern.test(customPrompt));
+
+        if (hasInjection) {
+          updatePipelineVisual('input', 'fail');
+          appendLog('GUARD: ⚠️ Injection pattern detected - BLOCKED');
+          metricStatus.textContent = 'Blocked';
+          lastRunData = { scenario: 'custom', final: 'blocked', error: 'Injection pattern detected' };
+          return;
+        }
+        appendLog('GUARD: No injection patterns found');
+        await new Promise(r => setTimeout(r, 600));
+
         appendLog('GUARD: Checking for PII exposure...');
         await new Promise(r => setTimeout(r, 600));
 
-        // Handle 422 - Validation/Guard failed
+        // Check for PII patterns
+        const piiDetection = detectPII(customPrompt);
+        if (piiDetection.hasPII) {
+          updatePipelineVisual('input', 'fail');
+          appendLog(`GUARD: ⚠️ PII detected (${piiDetection.piiTypes.join(', ')}) - BLOCKED`);
+          metricStatus.textContent = 'Blocked';
+          lastRunData = { scenario: 'custom', final: 'blocked', error: `PII detected: ${piiDetection.piiTypes.join(', ')}` };
+          return;
+        }
+        appendLog('GUARD: No PII exposure found');
+        await new Promise(r => setTimeout(r, 400));
+
+        // Handle 422 - Backend validation failed
         if (response.status === 422) {
           updatePipelineVisual('input', 'fail');
           const detail = data.detail;
@@ -2126,12 +2209,22 @@
     // Token counter update
     const promptInput = document.getElementById('input-prompt');
     const tokenCounter = document.getElementById('token-counter');
+    const MAX_INPUT_TOKENS = 4096;
     function updateTokenCount() {
       if (!promptInput || !tokenCounter) return;
       const text = promptInput.value;
       // Rough estimation: ~4 characters per token
       const estimatedTokens = Math.ceil(text.length / 4);
-      tokenCounter.textContent = `~${estimatedTokens} tokens`;
+      const remaining = Math.max(0, MAX_INPUT_TOKENS - estimatedTokens);
+      tokenCounter.textContent = `${remaining} remaining`;
+      // Change color when low
+      if (remaining < 500) {
+        tokenCounter.style.color = '#f87171'; // red
+      } else if (remaining < 1000) {
+        tokenCounter.style.color = '#fbbf24'; // yellow
+      } else {
+        tokenCounter.style.color = ''; // default
+      }
     }
     if (promptInput) {
       promptInput.addEventListener('input', updateTokenCount);
