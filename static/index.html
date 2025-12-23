@@ -1952,35 +1952,11 @@
         return;
       }
 
-      // Step 1: Auth - Running
+      // Step 1: Auth - Running (show while making API call)
       updatePipelineVisual('auth', 'running');
       appendLog('AUTH: Validating API key...');
-      await new Promise(r => setTimeout(r, 600));
-      updatePipelineVisual('auth', 'pass');
-      appendLog('AUTH: API key validated');
-      await new Promise(r => setTimeout(r, 400));
-
-      // Step 2: Input validation - Running
-      updatePipelineVisual('input', 'running');
-      appendLog('GUARD: Checking input...');
-      await new Promise(r => setTimeout(r, 600));
-      updatePipelineVisual('input', 'pass');
-      appendLog('GUARD: Input validated');
-      await new Promise(r => setTimeout(r, 400));
 
       try {
-        // Step 3: Router - Running
-        updatePipelineVisual('router', 'running');
-        appendLog('ROUTE: Selecting provider...');
-        await new Promise(r => setTimeout(r, 600));
-        updatePipelineVisual('router', 'pass');
-        appendLog('ROUTE: Provider selected');
-        await new Promise(r => setTimeout(r, 400));
-
-        // Step 4: Inference - Running
-        updatePipelineVisual('provider', 'running');
-        appendLog('INFER: Calling LLM provider...');
-
         const response = await fetch('/query', {
           method: 'POST',
           headers: {
@@ -1995,6 +1971,68 @@
         });
 
         const data = await response.json();
+
+        // Handle 401 - Auth failed
+        if (response.status === 401) {
+          updatePipelineVisual('auth', 'fail');
+          appendLog('AUTH: Invalid API key');
+          metricStatus.textContent = 'Failed';
+          lastRunData = { scenario: 'custom', final: 'error', error: 'Invalid API key' };
+          return;
+        }
+
+        // Auth passed
+        updatePipelineVisual('auth', 'pass');
+        appendLog('AUTH: API key validated');
+        await new Promise(r => setTimeout(r, 300));
+
+        // Step 2: Guard - Running
+        updatePipelineVisual('input', 'running');
+        appendLog('GUARD: Checking input...');
+        await new Promise(r => setTimeout(r, 300));
+
+        // Handle 422 - Validation/Guard failed
+        if (response.status === 422) {
+          updatePipelineVisual('input', 'fail');
+          const detail = data.detail;
+          if (Array.isArray(detail)) {
+            appendLog(`GUARD: ${detail.map(d => d.msg).join(', ')}`);
+          } else if (typeof detail === 'string' && detail.includes('injection')) {
+            appendLog('GUARD: Prompt injection detected - BLOCKED');
+          } else {
+            appendLog(`GUARD: ${JSON.stringify(detail)}`);
+          }
+          metricStatus.textContent = 'Blocked';
+          lastRunData = { scenario: 'custom', final: 'blocked', error: data.detail };
+          return;
+        }
+
+        // Guard passed
+        updatePipelineVisual('input', 'pass');
+        appendLog('GUARD: Input validated');
+        await new Promise(r => setTimeout(r, 300));
+
+        // Handle 429 - Rate limited
+        if (response.status === 429) {
+          updatePipelineVisual('router', 'fail');
+          appendLog('ROUTE: Rate limit exceeded');
+          metricStatus.textContent = 'Rate Limited';
+          lastRunData = { scenario: 'custom', final: 'error', error: 'Rate limited' };
+          return;
+        }
+
+        // Step 3: Router - Running
+        updatePipelineVisual('router', 'running');
+        appendLog('ROUTE: Selecting provider...');
+        await new Promise(r => setTimeout(r, 300));
+        updatePipelineVisual('router', 'pass');
+        appendLog('ROUTE: Provider selected');
+        await new Promise(r => setTimeout(r, 300));
+
+        // Step 4: Inference
+        updatePipelineVisual('provider', 'running');
+        appendLog('INFER: Processing response...');
+        await new Promise(r => setTimeout(r, 300));
 
         if (response.ok) {
           updatePipelineVisual('provider', 'pass', { provider: data.provider });
@@ -2032,34 +2070,15 @@
           };
 
         } else {
-          // Handle error response
+          // Other error
           updatePipelineVisual('provider', 'fail');
-
-          if (response.status === 401) {
-            updatePipelineVisual('auth', 'fail');
-            appendLog('ERROR: Invalid API key');
-          } else if (response.status === 422) {
-            updatePipelineVisual('input', 'fail');
-            const detail = data.detail;
-            if (Array.isArray(detail)) {
-              appendLog(`VALIDATION ERROR: ${detail.map(d => d.msg).join(', ')}`);
-            } else if (typeof detail === 'string' && detail.includes('injection')) {
-              appendLog('BLOCKED: Prompt injection detected');
-            } else {
-              appendLog(`VALIDATION ERROR: ${JSON.stringify(detail)}`);
-            }
-          } else if (response.status === 429) {
-            appendLog('RATE LIMITED: Too many requests');
-          } else {
-            appendLog(`ERROR: ${data.detail || 'Request failed'}`);
-          }
-
+          appendLog(`ERROR: ${data.detail || 'Request failed'}`);
           metricStatus.textContent = 'Failed';
           lastRunData = { scenario: 'custom', final: 'error', error: data.detail };
         }
 
       } catch (error) {
-        updatePipelineVisual('provider', 'fail');
+        updatePipelineVisual('auth', 'fail');
         appendLog(`NETWORK ERROR: ${error.message}`);
         metricStatus.textContent = 'Error';
         lastRunData = { scenario: 'custom', final: 'error', error: error.message };
