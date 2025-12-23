@@ -46,18 +46,31 @@
     .card-button { cursor:pointer; user-select:none; }
     
     /* Highlight animations for visual flow */
-    @keyframes pulse {
-      0%, 100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
-      50% { box-shadow: 0 0 20px 8px rgba(59, 130, 246, 0.5); }
+    @keyframes pulse-green {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+      50% { box-shadow: 0 0 20px 8px rgba(16, 185, 129, 0.5); }
     }
 
-    @keyframes flash {
+    @keyframes pulse-red {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+      50% { box-shadow: 0 0 20px 8px rgba(239, 68, 68, 0.5); }
+    }
+
+    @keyframes flash-green {
       0%, 100% { background-color: inherit; border-color: inherit; }
-      50% { background-color: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.4); }
+      50% { background-color: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.4); }
     }
 
-    .pulse-highlight { animation: pulse 1.5s ease-in-out; }
-    .flash-highlight { animation: flash 0.6s ease-in-out; }
+    @keyframes flash-red {
+      0%, 100% { background-color: inherit; border-color: inherit; }
+      50% { background-color: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.4); }
+    }
+
+    .pulse-highlight { animation: pulse-green 1.5s ease-in-out; }
+    .pulse-highlight-success { animation: pulse-green 1.5s ease-in-out; }
+    .pulse-highlight-blocked { animation: pulse-red 1.5s ease-in-out; }
+    .flash-highlight { animation: flash-green 0.6s ease-in-out; }
+    .flash-highlight-blocked { animation: flash-red 0.6s ease-in-out; }
     
     /* Tooltip styles */
     .has-tooltip { position: relative; cursor: help; }
@@ -131,9 +144,9 @@
     .pipeline-node { transition: all 0.3s ease; opacity: 0.5; }
     .pipeline-node.active { opacity: 1; }
     .pipeline-connector { height: 2px; background: #334155; margin: 0 0.5rem; position: relative; }
-    .pipeline-connector-fill { position: absolute; height: 100%; width: 0%; background: #3b82f6; transition: width 0.5s ease; }
+    .pipeline-connector-fill { position: absolute; height: 100%; width: 0%; background: #10b981; transition: width 0.5s ease; }
     .pipeline-icon-box { transition: all 0.3s ease; }
-    .pipeline-icon-box.active { border-color: #3b82f6; box-shadow: 0 0 10px rgba(59, 130, 246, 0.3); }
+    .pipeline-icon-box.active { border-color: #10b981; box-shadow: 0 0 10px rgba(16, 185, 129, 0.3); }
     .pipeline-icon-box.blocked { border-color: #ef4444; box-shadow: 0 0 10px rgba(239, 68, 68, 0.3); }
     
     /* Ghost button style */
@@ -687,20 +700,22 @@
       const target = steps[stepId];
       if (!target || !target.node) return;
 
-      // 1. STATE: RUNNING (Pulse the node)
+      // 1. STATE: RUNNING (Pulse the node with green glow)
       if (status === 'running') {
-        target.node.classList.remove('opacity-50');
-        target.node.classList.add('active', 'pulse-highlight');
+        target.node.classList.remove('opacity-50', 'pulse-highlight-blocked');
+        target.node.classList.add('active', 'pulse-highlight-success');
       }
 
-      // 2. STATE: PASS
+      // 2. STATE: PASS (Green glow)
       else if (status === 'pass') {
-        target.node.classList.remove('pulse-highlight');
+        target.node.classList.remove('pulse-highlight-success', 'pulse-highlight-blocked');
+        target.node.classList.add('pulse-highlight-success');
       }
 
-      // 3. STATE: BLOCKED (Turn Red)
+      // 3. STATE: BLOCKED (Red glow)
       else if (status === 'block' || status === 'fail') {
-        target.node.classList.remove('pulse-highlight');
+        target.node.classList.remove('pulse-highlight-success');
+        target.node.classList.add('pulse-highlight-blocked');
 
         // Change Icon to X
         const spans = target.node.querySelectorAll('span');
@@ -726,7 +741,7 @@
         const el = document.getElementById(id);
         if(!el) return;
         el.classList.add('opacity-50');
-        el.classList.remove('active', 'pulse-highlight');
+        el.classList.remove('active', 'pulse-highlight', 'pulse-highlight-success', 'pulse-highlight-blocked');
 
         // Reset Icon Text (in case we changed it to 🚫)
         // Get icon span directly (no container div anymore)
@@ -970,12 +985,13 @@
       if (outcome === 'fail' || outcome === 'timeout') el.innerHTML += ' ❌';
     }
     
-    function highlightElement(selector, type = 'pulse') {
+    function highlightElement(selector, type = 'pulse', status = 'success') {
       const el = document.querySelector(selector);
       if (!el) return;
 
-      el.classList.add(`${type}-highlight`);
-      setTimeout(() => el.classList.remove(`${type}-highlight`), 1000);
+      const className = status === 'blocked' ? `${type}-highlight-blocked` : `${type}-highlight-success`;
+      el.classList.add(className);
+      setTimeout(() => el.classList.remove(className), 1000);
     }
 
     // Display batch metrics in status area
@@ -1456,8 +1472,8 @@
           lastRunData.tokensSaved = scenario.maxTokens;
           metricTokens.innerHTML = `${lastRunData.tokensConsumed}/<span id="metric-tokens-max">${scenario.maxTokens}</span>`;
           metricTokensSaved.textContent = lastRunData.tokensSaved;
-          // Highlight metrics to show savings
-          highlightElement('#metric-latency', 'pulse');
+          // Highlight metrics with red glow for blocked
+          highlightElement('#metric-latency', 'pulse', 'blocked');
           addCommentary(`Request terminated. Zero resources consumed.`);
           addCommentary('Tokens saved: ' + scenario.maxTokens + ' (~$' + (scenario.maxTokens * 0.00003).toFixed(4) + ')');
           metricProvider.textContent = '---';
@@ -1744,6 +1760,11 @@
 
     // Execute custom prompt handler - REAL API CALL
     document.getElementById('execute-custom')?.addEventListener('click', async () => {
+      // CLEAR FIRST: Clear execution log before anything else
+      statusMessageCounter = 0;
+      statusMessages = [];
+      executionLog.innerHTML = '';
+
       const customPrompt = document.getElementById('input-prompt').value;
       const apiKey = document.getElementById('input-api').value;
       const maxTokens = parseInt(document.getElementById('input-max-tokens').value) || 256;
@@ -1759,9 +1780,7 @@
         return;
       }
 
-      // CLEAR: Clear execution log before fresh execution
-      statusMessageCounter = 0;
-      statusMessages = [];
+      // Show sending message
       executionLog.innerHTML = `
         <div class="text-xs text-slate-300 font-medium text-center">
           Sending request to backend API...
