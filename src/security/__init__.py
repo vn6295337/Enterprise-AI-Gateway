@@ -88,6 +88,7 @@ def detect_toxicity(text: str) -> dict:
     """
     Detect toxic content using Gemini's built-in safety filters.
     Uses GEMINI_API_KEY environment variable for authentication.
+    Gemini 2.5 models handle safety by refusing harmful content.
     Returns: {is_toxic: bool, scores: dict, blocked_categories: list, error: str|None}
     """
     # Read API key at runtime to pick up HF Spaces secrets
@@ -102,16 +103,21 @@ def detect_toxicity(text: str) -> dict:
         }
 
     try:
-        # Set safety settings to BLOCK_NONE to get ratings without blocking
-        # This lets us see the safety scores and make our own decision
-        safety_settings = [
-            {"category": cat, "threshold": "BLOCK_NONE"}
-            for cat in HARM_CATEGORIES
-        ]
+        # Ask Gemini to classify if the content is harmful
+        classification_prompt = f"""Analyze this text and determine if it requests harmful content.
+Respond with ONLY one of these categories, or "SAFE" if harmless:
+- SEXUALLY_EXPLICIT (nude, porn, explicit sexual content)
+- HATE_SPEECH (racism, discrimination, slurs)
+- HARASSMENT (threats, bullying, intimidation)
+- DANGEROUS_CONTENT (weapons, drugs, violence, self-harm)
+- CIVIC_INTEGRITY (election fraud, voter suppression)
+
+Text to analyze: "{text}"
+
+Category:"""
 
         payload = {
-            "contents": [{"parts": [{"text": text}]}],
-            "safetySettings": safety_settings,
+            "contents": [{"parts": [{"text": classification_prompt}]}],
         }
 
         response = requests.post(
@@ -135,51 +141,43 @@ def detect_toxicity(text: str) -> dict:
             }
 
         data = response.json()
-        scores = {}
         blocked_categories = []
+        scores = {}
 
-        # Check if content was blocked
+        # Check if request was blocked at prompt level
         if "promptFeedback" in data:
             feedback = data["promptFeedback"]
             if feedback.get("blockReason"):
                 blocked_categories.append(feedback["blockReason"])
-
-            # Extract safety ratings
-            for rating in feedback.get("safetyRatings", []):
-                category = rating.get("category", "UNKNOWN")
-                probability = rating.get("probability", "NEGLIGIBLE")
-
-                # Convert probability to score
-                prob_scores = {
-                    "NEGLIGIBLE": 0.1,
-                    "LOW": 0.3,
-                    "MEDIUM": 0.6,
-                    "HIGH": 0.9
+                return {
+                    "is_toxic": True,
+                    "scores": {"BLOCKED": 1.0},
+                    "blocked_categories": blocked_categories,
+                    "error": None
                 }
-                score = prob_scores.get(probability, 0.0)
-                scores[category] = score
 
-                # Block if HIGH probability
-                if probability == "HIGH":
-                    blocked_categories.append(category)
+        # Parse Gemini's classification response
+        if "candidates" in data and data["candidates"]:
+            response_text = ""
+            for part in data["candidates"][0].get("content", {}).get("parts", []):
+                response_text += part.get("text", "")
 
-        # Also check candidate safety ratings
-        for candidate in data.get("candidates", []):
-            for rating in candidate.get("safetyRatings", []):
-                category = rating.get("category", "UNKNOWN")
-                probability = rating.get("probability", "NEGLIGIBLE")
+            response_text = response_text.strip().upper()
 
-                prob_scores = {
-                    "NEGLIGIBLE": 0.1,
-                    "LOW": 0.3,
-                    "MEDIUM": 0.6,
-                    "HIGH": 0.9
-                }
-                score = prob_scores.get(probability, 0.0)
-                scores[category] = score
+            # Check for harmful categories
+            harmful_categories = [
+                "SEXUALLY_EXPLICIT", "HATE_SPEECH", "HARASSMENT",
+                "DANGEROUS_CONTENT", "CIVIC_INTEGRITY"
+            ]
 
-                if probability == "HIGH" and category not in blocked_categories:
-                    blocked_categories.append(category)
+            for category in harmful_categories:
+                if category in response_text:
+                    blocked_categories.append(f"HARM_CATEGORY_{category}")
+                    scores[f"HARM_CATEGORY_{category}"] = 0.9
+
+            # If Gemini says SAFE or doesn't match categories
+            if not blocked_categories:
+                scores["SAFE"] = 1.0
 
         return {
             "is_toxic": len(blocked_categories) > 0,
