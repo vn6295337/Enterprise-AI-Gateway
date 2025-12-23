@@ -1,176 +1,92 @@
-# Configuration Guide
+# Configuration
 
-This document explains how to configure the LLM Secure Gateway for different environments and use cases.
+Environment variables for the Enterprise AI Gateway.
 
-## Environment Variables
+## Required Variables
 
-The LLM Secure Gateway is configured using environment variables. These can be set in a `.env` file or in your deployment environment.
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `SERVICE_API_KEY` | Gateway authentication key | `secure-abc123xyz` |
+| `GEMINI_API_KEY` | Google Gemini API key | `AIzaSy...` |
 
-### Required Configuration
+## Optional Variables
 
-| Variable | Description | Default | Example |
-|----------|-------------|---------|---------|
-| `SERVICE_API_KEY` | API key for accessing the gateway | None | `sk-secure-key-12345` |
+### LLM Providers (Fallback)
 
-### LLM Provider Configuration
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `GROQ_API_KEY` | Groq API key for fallback | None |
+| `OPENROUTER_API_KEY` | OpenRouter API key for fallback | None |
+| `GEMINI_MODEL` | Gemini model to use | `gemini-2.5-flash` |
+| `GROQ_MODEL` | Groq model to use | `llama-3.3-70b-versatile` |
+| `OPENROUTER_MODEL` | OpenRouter model | `google/gemini-2.0-flash-exp:free` |
 
-At least one LLM provider must be configured:
+### Safety & Security
 
-| Variable | Description | Default | Example |
-|----------|-------------|---------|---------|
-| `GEMINI_API_KEY` | Google Gemini API key | None | `AIzaSyB1234567890` |
-| `GROQ_API_KEY` | Groq API key | None | `gsk_1234567890abcdef` |
-| `OPENROUTER_API_KEY` | OpenRouter API key | None | `sk-or-1234567890abcdef` |
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `LAKERA_API_KEY` | Lakera Guard API key (safety fallback) | None |
+| `TOXICITY_THRESHOLD` | Safety block threshold (0-1) | `0.7` |
+| `RATE_LIMIT` | Server rate limit | `10/minute` |
+| `ENABLE_PROMPT_INJECTION_CHECK` | Enable injection detection | `true` |
 
-### Optional Configuration
+### Server
 
-| Variable | Description | Default | Example |
-|----------|-------------|---------|---------|
-| `RATE_LIMIT` | Rate limit per IP | `10/minute` | `5/minute` |
-| `ALLOWED_ORIGINS` | CORS allowed origins | `*` | `https://yourapp.com` |
-| `ENABLE_PROMPT_INJECTION_CHECK` | Enable prompt injection detection | `true` | `false` |
-| `GEMINI_MODEL` | Gemini model to use | `gemini-2.0-flash-exp` | `gemini-pro` |
-| `GROQ_MODEL` | Groq model to use | `llama-3.3-70b-versatile` | `llama3-70b-8192` |
-| `OPENROUTER_MODEL` | OpenRouter model to use | `google/gemini-2.0-flash-exp:free` | `openai/gpt-3.5-turbo` |
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Server port | `8000` |
+| `ALLOWED_ORIGINS` | CORS origins (comma-separated) | `*` |
 
-## Configuration Files
-
-### .env File
-
-Create a `.env` file in the project root with the following format:
+## Example .env File
 
 ```bash
-# Service Configuration
-SERVICE_API_KEY=your_secure_api_key_here
+# Required
+SERVICE_API_KEY=secure-YourSecretKey123
+GEMINI_API_KEY=AIzaSyCXGpbbsuYxkGv2o_ZcJD385Kt168YFiYc
 
-# LLM Provider API Keys (at least one required)
-GEMINI_API_KEY=your_gemini_api_key
-GROQ_API_KEY=your_groq_api_key
-OPENROUTER_API_KEY=your_openrouter_api_key
+# Optional - Fallback LLMs
+GROQ_API_KEY=gsk_your_groq_key
+OPENROUTER_API_KEY=sk-or-your_openrouter_key
 
-# Optional Configuration
+# Optional - Safety
+LAKERA_API_KEY=your_lakera_api_key
+TOXICITY_THRESHOLD=0.7
+
+# Optional - Server
 RATE_LIMIT=10/minute
-ALLOWED_ORIGINS=*
-ENABLE_PROMPT_INJECTION_CHECK=true
-GEMINI_MODEL=gemini-2.0-flash-exp
-GROQ_MODEL=llama-3.3-70b-versatile
-OPENROUTER_MODEL=google/gemini-2.0-flash-exp:free
+ALLOWED_ORIGINS=https://yourdomain.com
 ```
 
-### Docker Configuration
+## HuggingFace Spaces Secrets
 
-When using Docker, you can pass environment variables using the `-e` flag:
+Add these in your Space settings under "Repository secrets":
+
+1. `SERVICE_API_KEY` (required)
+2. `GEMINI_API_KEY` (required)
+3. `LAKERA_API_KEY` (optional - safety fallback)
+4. `GROQ_API_KEY` (optional - LLM fallback)
+5. `OPENROUTER_API_KEY` (optional - LLM fallback)
+
+## Provider Priority
+
+The LLM cascade tries providers in this order:
+1. **Gemini** (if `GEMINI_API_KEY` set)
+2. **Groq** (if `GROQ_API_KEY` set)
+3. **OpenRouter** (if `OPENROUTER_API_KEY` set)
+
+## Safety Priority
+
+Content safety checks use this order:
+1. **Gemini Classification** (primary) - Uses `GEMINI_API_KEY`
+2. **Lakera Guard** (fallback on Gemini failure) - Uses `LAKERA_API_KEY`
+
+## Docker
 
 ```bash
 docker run -d \
-  -e SERVICE_API_KEY=your_secure_api_key \
-  -e GEMINI_API_KEY=your_gemini_api_key \
-  -e GROQ_API_KEY=your_groq_api_key \
-  -e RATE_LIMIT=5/minute \
+  -e SERVICE_API_KEY=your_key \
+  -e GEMINI_API_KEY=your_gemini_key \
+  -e LAKERA_API_KEY=your_lakera_key \
   -p 8000:8000 \
   llm-secure-gateway
 ```
-
-Or use a Docker environment file:
-
-```bash
-docker run -d \
-  --env-file .env \
-  -p 8000:8000 \
-  llm-secure-gateway
-```
-
-## Deployment-Specific Configuration
-
-### Hugging Face Spaces
-
-When deploying to Hugging Face Spaces, set the environment variables in the Space settings under "Repository secrets":
-
-1. Go to your Space settings
-2. Navigate to "Repository secrets"
-3. Add the following secrets:
-   - `SERVICE_API_KEY`
-   - `GEMINI_API_KEY`
-   - `GROQ_API_KEY`
-   - `OPENROUTER_API_KEY`
-
-### Production Considerations
-
-1. **API Key Security**: Never commit API keys to version control
-2. **Rate Limiting**: Adjust rate limits based on your expected usage
-3. **CORS**: Restrict allowed origins in production
-4. **Logging**: Enable appropriate logging levels
-5. **Monitoring**: Set up monitoring for your deployment
-
-## Model Selection
-
-### Default Models
-
-The gateway uses optimized models by default:
-
-- **Gemini**: `gemini-2.0-flash-exp` - Fast and capable model
-- **Groq**: `llama-3.3-70b-versatile` - High-performance model
-- **OpenRouter**: `google/gemini-2.0-flash-exp:free` - Free access to Gemini
-
-### Changing Models
-
-To use different models, set the corresponding environment variables:
-
-```bash
-GEMINI_MODEL=gemini-pro
-GROQ_MODEL=llama3-70b-8192
-OPENROUTER_MODEL=openai/gpt-4
-```
-
-Note: Different models may have different pricing, rate limits, and capabilities.
-
-## Security Configuration
-
-### API Key Best Practices
-
-1. Generate a strong, random API key
-2. Rotate keys periodically
-3. Use different keys for different clients/environments
-4. Monitor key usage
-
-### Rate Limiting
-
-Adjust rate limits based on your needs:
-
-```bash
-# More restrictive
-RATE_LIMIT=5/hour
-
-# Less restrictive
-RATE_LIMIT=100/minute
-
-# Multiple limits
-RATE_LIMIT=10/minute;1000/day
-```
-
-### Prompt Injection Detection
-
-Enable/disable prompt injection detection:
-
-```bash
-# Enable (recommended)
-ENABLE_PROMPT_INJECTION_CHECK=true
-
-# Disable (not recommended)
-ENABLE_PROMPT_INJECTION_CHECK=false
-```
-
-## Testing Configuration
-
-For testing purposes, you can use placeholder values:
-
-```bash
-# Test configuration
-SERVICE_API_KEY=test-key-12345
-GEMINI_API_KEY=test-gemini-key
-GROQ_API_KEY=test-groq-key
-OPENROUTER_API_KEY=test-openrouter-key
-RATE_LIMIT=100/minute
-```
-
-Note: These won't work with actual LLM providers but can be useful for testing the gateway itself.
