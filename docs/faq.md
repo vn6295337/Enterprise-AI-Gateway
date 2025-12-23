@@ -1,5 +1,7 @@
 # Frequently Asked Questions (FAQ)
 
+> **Primary Responsibility:** Q&A format help with cross-references to detailed docs
+
 This document answers common questions about the LLM Secure Gateway.
 
 ## Table of Contents
@@ -79,57 +81,76 @@ Recommended for production:
 
 ### How is the gateway configured?
 
-Configuration is done through environment variables:
+Configuration is done through environment variables. See [Configuration Guide](configuration.md) for complete reference.
 
-```bash
-SERVICE_API_KEY=your_secure_api_key
-GEMINI_API_KEY=your_gemini_api_key
-GROQ_API_KEY=your_groq_api_key
-OPENROUTER_API_KEY=your_openrouter_api_key
-RATE_LIMIT=10/minute
-ALLOWED_ORIGINS=*
-```
+**Required:** `SERVICE_API_KEY`, `GEMINI_API_KEY`
+
+**Optional:** `GROQ_API_KEY`, `OPENROUTER_API_KEY`, `LAKERA_API_KEY`, `TOXICITY_THRESHOLD`, `RATE_LIMIT`
 
 ### What APIs does the gateway provide?
 
-The gateway exposes three main endpoints:
-- `GET /health` - Health check endpoint
-- `POST /query` - Main LLM query endpoint
-- `GET /` - Interactive dashboard (UI only)
+See [API Reference](api_reference.md) for complete documentation.
 
-See the [API Reference](api_reference.md) for detailed documentation.
+**Main endpoints:**
+- `POST /query` - LLM query with security checks
+- `POST /check-toxicity` - Content safety check
+- `GET /health` - Service health status
+- `GET /metrics` - Performance metrics
 
 ## Security Questions
 
+For detailed security documentation, see [Security Overview](security_overview.md).
+
 ### How secure is the LLM Secure Gateway?
 
-The gateway implements multiple security layers:
+The gateway implements 4 security layers:
 
-1. **Authentication**: API key validation with constant-time comparison
-2. **Rate Limiting**: IP-based request throttling
-3. **Input Validation**: Strict validation of all request parameters
-4. **Prompt Injection Protection**: Pattern-based detection of malicious prompts
-5. **Transport Security**: HTTPS encryption (provided by deployment platform)
-6. **Environment Isolation**: API keys stored as environment variables
+1. **Authentication & Rate Limiting** - API key validation, DDoS protection
+2. **Input Guard** - PII detection, prompt injection patterns
+3. **AI Safety** - Gemini + Lakera Guard content classification
+4. **Transport Security** - HTTPS encryption
 
 ### How are API keys protected?
 
-API keys are protected through:
-
-1. **Environment Variables**: Never stored in code or version control
-2. **Constant-Time Comparison**: Prevents timing attacks
-3. **Secure Generation**: Recommendations for strong, random keys
-4. **Easy Rotation**: Simple process for changing keys
+- Stored as environment variables (never in code)
+- Constant-time comparison (prevents timing attacks)
+- Easy rotation process
 
 ### What prompt injection attacks are detected?
 
-The gateway detects common prompt injection patterns including:
+The gateway uses a dual-layer detection system:
+
+**Pattern-Based Detection** (Layer 2 - Input Guard):
 - `ignore all previous instructions`
 - `disregard all prior instructions`
 - `you are now`
 - `system:`
 
-The detection system can be extended with additional patterns as needed.
+**AI-Based Detection** (Layer 3 - AI Safety):
+- Gemini 2.5 Flash content classification
+- Lakera Guard fallback for advanced jailbreak attempts
+
+### What harmful content is blocked?
+
+The AI Safety layer (Gemini + Lakera Guard) detects and blocks:
+
+| Category | Examples |
+|----------|----------|
+| **Sexually Explicit** | Nude content, pornography, explicit material |
+| **Hate Speech** | Racism, discrimination, slurs |
+| **Harassment** | Threats, bullying, intimidation |
+| **Dangerous Content** | Weapons, drugs, violence, self-harm |
+| **Civic Integrity** | Election fraud, voter suppression |
+
+### How does the AI safety fallback work?
+
+1. **Primary**: Gemini 2.5 Flash classifies the content
+2. **Fallback**: If Gemini fails or times out, Lakera Guard is used
+3. **Result**: Request is blocked if harmful content is detected
+
+Configure with:
+- `GEMINI_API_KEY`: Required for primary classification
+- `LAKERA_API_KEY`: Optional for fallback
 
 ### How does rate limiting work?
 
@@ -236,64 +257,16 @@ You can modify these patterns or add new ones as needed.
 
 ## Troubleshooting
 
-### I'm getting a 401 Unauthorized error
+For detailed troubleshooting, see [Troubleshooting Guide](troubleshooting.md).
 
-Check that:
-1. You're including the `X-API-Key` header
-2. Your API key is correctly configured in the environment
-3. Your API key matches exactly (no extra spaces)
-
-### I'm getting a 422 Validation Error
-
-Check that:
-1. Your prompt is between 1-4000 characters
-2. `max_tokens` is between 1-2048
-3. `temperature` is between 0.0-2.0
-4. Your prompt doesn't contain injection patterns
-
-### I'm getting a 500 Internal Server Error
-
-This indicates all LLM providers failed. Check:
-1. That your provider API keys are valid
-2. That you have sufficient quotas with your providers
-3. Provider status pages for service outages
-4. Network connectivity to provider endpoints
-
-### The gateway won't start
-
-Check that:
-1. All required environment variables are set
-2. Python dependencies are installed
-3. Port is not already in use
-4. Sufficient system resources are available
-
-### Performance seems slow
-
-Consider:
-1. Provider response times (some providers are naturally slower)
-2. Network latency between gateway and providers
-3. Request complexity and token count
-4. Concurrent request load
-
-### How do I monitor the gateway?
-
-The gateway provides:
-1. Health check endpoint (`/health`)
-2. Response metadata (provider, latency)
-3. Structured logging (when enabled)
-4. Dashboard UI for interactive monitoring
-
-For production, consider implementing:
-- Prometheus metrics endpoint
-- Log aggregation
-- Performance monitoring
-- Alerting for errors and performance issues
+**Quick fixes:**
+- 401 errors → Check `X-API-Key` header and `SERVICE_API_KEY` env var
+- 422 errors → Check prompt length (1-4000 chars) and injection patterns
+- 500 errors → Check provider API keys and quotas
+- Slow responses → Check provider status and network latency
 
 ## Getting More Help
 
-If your question isn't answered here:
-
-1. Check the [Documentation](README.md)
-2. Review the [GitHub Issues](https://github.com/vn6295337/LLM-secure-gateway/issues)
+1. Check the [Troubleshooting Guide](troubleshooting.md)
+2. Review [GitHub Issues](https://github.com/vn6295337/LLM-secure-gateway/issues)
 3. Open a new issue with your question
-4. Join community discussions (when available)

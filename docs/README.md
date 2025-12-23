@@ -1,51 +1,66 @@
-# Documentation Structure
+# Documentation
 
-This directory contains all documentation for the LLM Secure Gateway project. The documentation is organized following best practices for software projects to ensure clarity and maintainability.
+> **Primary Responsibility:** Documentation index and quick start guide
 
-## Documentation Categories
+Essential documentation for the Enterprise AI Gateway.
 
-### 1. Getting Started
-- [README.md](../README.md) - Project overview and quick start guide
-- [installation.md](installation.md) - Detailed installation instructions
-- [quickstart.md](quickstart.md) - Quick start guide for new users
+## Quick Start
 
-### 2. Architecture & Design
-- [architecture.md](architecture.md) - System architecture and design decisions
-- [design_decisions.md](design_decisions.md) - Key design decisions and rationale
-- [technology_stack.md](technology_stack.md) - Technology choices and versions
+```bash
+# 1. Clone and install
+git clone https://github.com/vn6295337/Enterprise-AI-Gateway.git
+cd Enterprise-AI-Gateway
+pip install -r requirements.txt
 
-### 3. API Documentation
-- [api_reference.md](api_reference.md) - Complete API reference
-- [api_examples.md](api_examples.md) - Practical API usage examples
-- [error_handling.md](error_handling.md) - Error codes and handling
+# 2. Configure (create .env file)
+SERVICE_API_KEY=your_secure_key
+GEMINI_API_KEY=your_gemini_key
 
-### 4. Development
-- [development_setup.md](development_setup.md) - Setting up development environment
-- [contributing.md](contributing.md) - Contribution guidelines
-- [coding_standards.md](coding_standards.md) - Coding standards and practices
-- [testing.md](testing.md) - Testing strategy and procedures
+# 3. Run
+uvicorn src.main:app --host 0.0.0.0 --port 8000
 
-### 5. Operations
-- [deployment.md](deployment.md) - Deployment instructions
-- [configuration.md](configuration.md) - Configuration options
-- [monitoring.md](monitoring.md) - Monitoring and observability
-- [troubleshooting.md](troubleshooting.md) - Troubleshooting guide
+# 4. Test
+curl http://localhost:8000/health
+```
 
-### 6. Security
-- [security_overview.md](security_overview.md) - Security architecture
-- [authentication.md](authentication.md) - Authentication mechanisms
-- [authorization.md](authorization.md) - Authorization controls
+See [Deployment Guide](deployment.md) for Docker and cloud deployment options.
 
-### 7. Reference
-- [faq.md](faq.md) - Frequently asked questions
-- [changelog.md](changelog.md) - Release history and changes
-- [roadmap.md](roadmap.md) - Future plans and roadmap
+---
 
-## Style Guide
+## Documentation Index (MECE)
 
-All documentation should follow these conventions:
-- Use Markdown format
-- Follow clear heading hierarchy (H1, H2, H3)
-- Use code blocks for examples
-- Include links to related documents
-- Keep language clear and concise
+| Document | Primary Responsibility |
+|----------|------------------------|
+| [Project Structure](project_structure.md) | Directory layout and codebase organization |
+| [API Reference](api_reference.md) | Complete API endpoint and function documentation |
+| [Architecture](architecture.md) | System design, component architecture, data flow |
+| [Configuration](configuration.md) | All environment variables and settings |
+| [Security Overview](security_overview.md) | Security architecture, threat model, compliance |
+| [Deployment](deployment.md) | Deployment procedures (local, Docker, cloud) |
+| [Testing](testing.md) | Testing strategy and test examples |
+| [FAQ](faq.md) | Q&A format help with cross-references |
+| [Troubleshooting](troubleshooting.md) | Problem diagnosis and resolution |
+
+## Security Layers
+
+The gateway implements 4 security layers:
+
+1. **Authentication & Rate Limiting** - API key validation, DDoS protection
+2. **Input Guard** - Prompt injection detection, PII detection
+3. **AI Safety** - Gemini 2.5 Flash + Lakera Guard content classification
+4. **LLM Router** - Multi-provider cascade with secure API communication
+
+## Key Features
+
+- **Multi-provider failover**: Gemini → Groq → OpenRouter
+- **AI content moderation**: Harmful content detection and blocking
+- **PII protection**: Automatic detection of SSN, credit cards, emails, API keys
+- **Rate limiting**: Configurable per-minute limits
+
+## Configuration
+
+**Required:** `SERVICE_API_KEY`, `GEMINI_API_KEY`
+
+**Optional:** `GROQ_API_KEY`, `OPENROUTER_API_KEY`, `LAKERA_API_KEY`, `TOXICITY_THRESHOLD`, `RATE_LIMIT`
+
+See [Configuration Guide](configuration.md) for complete details.

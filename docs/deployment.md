@@ -1,5 +1,7 @@
 # Deployment Guide
 
+> **Primary Responsibility:** Deployment procedures for all environments (local, Docker, cloud)
+
 This guide explains how to deploy the LLM Secure Gateway in different environments.
 
 ## Table of Contents
@@ -189,59 +191,30 @@ sudo docker run -d \
 2. **Disaster Recovery**: Plan for disaster recovery scenarios
 3. **Rollback Strategy**: Have a rollback strategy for deployments
 
-## Environment-Specific Configuration
+## Environment Configuration
 
-### Development
+See [Configuration Guide](configuration.md) for complete environment variable reference.
 
+**Quick reference:**
 ```bash
-RATE_LIMIT=100/minute
-ENABLE_PROMPT_INJECTION_CHECK=true
-ALLOWED_ORIGINS=*
-```
+# Required
+SERVICE_API_KEY=your_key
+GEMINI_API_KEY=your_gemini_key
 
-### Staging
-
-```bash
-RATE_LIMIT=50/minute
-ENABLE_PROMPT_INJECTION_CHECK=true
-ALLOWED_ORIGINS=https://staging.yourapp.com
-```
-
-### Production
-
-```bash
+# Optional
+LAKERA_API_KEY=your_lakera_key
 RATE_LIMIT=10/minute
-ENABLE_PROMPT_INJECTION_CHECK=true
-ALLOWED_ORIGINS=https://yourapp.com
 ```
 
 ## Troubleshooting
 
-### Common Issues
+See [Troubleshooting Guide](troubleshooting.md) for detailed help.
 
-1. **Container fails to start**: Check environment variables and logs
-2. **API requests fail**: Verify API keys and network connectivity
-3. **Rate limiting issues**: Adjust rate limit configuration
-4. **CORS errors**: Check allowed origins configuration
-
-### Debugging
-
-View container logs:
-
+**Quick debugging:**
 ```bash
-docker logs llm-gateway
-```
-
-Check running containers:
-
-```bash
-docker ps
-```
-
-Access container shell:
-
-```bash
-docker exec -it llm-gateway /bin/bash
+docker logs llm-gateway     # View logs
+docker ps                   # Check running containers
+docker exec -it llm-gateway /bin/bash  # Access shell
 ```
 
 ## Maintenance

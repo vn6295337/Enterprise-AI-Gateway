@@ -1,5 +1,7 @@
 # Configuration
 
+> **Primary Responsibility:** All environment variables and configuration settings
+
 Environment variables for the Enterprise AI Gateway.
 
 ## Required Variables

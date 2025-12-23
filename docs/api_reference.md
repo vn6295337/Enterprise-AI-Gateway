@@ -1,5 +1,7 @@
 # API Reference
 
+> **Primary Responsibility:** Complete API endpoint and function documentation
+
 This document provides a complete reference for the LLM Secure Gateway API endpoints.
 
 ## Base URL
@@ -61,6 +63,18 @@ Detect PII (Personally Identifiable Information) in prompts. Returns:
 - `pii_types`: List of PII types detected (email, credit_card, ssn, tax_id, api_key)
 - `matches`: Dictionary with count of each PII type found
 
+#### `detect_toxicity(text: str) -> dict`
+Detect toxic/harmful content using Gemini AI classification with Lakera Guard fallback. Returns:
+- `is_toxic`: Boolean indicating if content is harmful
+- `scores`: Dictionary of category scores
+- `blocked_categories`: List of detected harmful categories
+- `error`: Error message if API call failed
+
+Categories detected: SEXUALLY_EXPLICIT, HATE_SPEECH, HARASSMENT, DANGEROUS_CONTENT, CIVIC_INTEGRITY
+
+#### `detect_toxicity_lakera(text: str) -> dict`
+Fallback toxicity detection using Lakera Guard API. Called automatically when Gemini fails.
+
 #### `validate_api_key(api_key: str) -> str`
 Validate API key for request authentication.
 
@@ -111,6 +125,10 @@ Batch resilience testing endpoint. Runs multiple prompts through the cascade and
 #### `/batch/security` (POST)
 Batch security testing endpoint. Tests prompts for PII and injection without executing LLM calls.
 
+#### `/check-toxicity` (POST)
+Content safety check endpoint. Uses Gemini AI classification with Lakera Guard fallback.
+Returns toxicity status, scores, and blocked categories.
+
 ### llm/client.py
 LLM client with multi-provider fallback functionality.
 
@@ -152,16 +170,21 @@ Estimate cost for a request in USD.
 
 ### Required
 - `SERVICE_API_KEY`: API key for authenticating requests
+- `GEMINI_API_KEY`: API key for Google Gemini (primary LLM + AI safety)
 
 ### Optional LLM Provider Keys
-- `GEMINI_API_KEY`: API key for Google Gemini
-- `GROQ_API_KEY`: API key for Groq
-- `OPENROUTER_API_KEY`: API key for OpenRouter
+- `GROQ_API_KEY`: API key for Groq (fallback LLM)
+- `OPENROUTER_API_KEY`: API key for OpenRouter (fallback LLM)
+
+### Optional Safety Keys
+- `LAKERA_API_KEY`: Lakera Guard API key (safety fallback when Gemini fails)
 
 ### Configuration
 - `RATE_LIMIT`: Rate limiting configuration (default: "10/minute")
 - `ALLOWED_ORIGINS`: Comma-separated list of allowed origins (default: "*")
 - `ENABLE_PROMPT_INJECTION_CHECK`: Enable prompt injection detection (default: "true")
+- `TOXICITY_THRESHOLD`: Safety threshold 0-1 (default: "0.7")
+- `GEMINI_MODEL`: Gemini model to use (default: "gemini-2.5-flash")
 
 ## Endpoints
 
@@ -346,6 +369,52 @@ Test prompts for security issues without executing LLM calls.
   "results": [...]
 }
 ```
+
+### Content Safety Check
+
+#### `POST /check-toxicity`
+
+Check content for harmful/toxic material using AI classification.
+
+**Headers:**
+```
+Content-Type: application/json
+X-API-Key: YOUR_API_KEY
+```
+
+**Request Body:**
+```json
+{
+  "text": "Content to analyze for safety"
+}
+```
+
+**Response:**
+```json
+{
+  "is_toxic": false,
+  "scores": {"SAFE": 1.0},
+  "blocked_categories": [],
+  "error": null
+}
+```
+
+**Blocked Response Example:**
+```json
+{
+  "is_toxic": true,
+  "scores": {"HARM_CATEGORY_SEXUALLY_EXPLICIT": 0.9},
+  "blocked_categories": ["HARM_CATEGORY_SEXUALLY_EXPLICIT"],
+  "error": null
+}
+```
+
+**Harm Categories:**
+- `SEXUALLY_EXPLICIT`: Nude, porn, explicit sexual content
+- `HATE_SPEECH`: Racism, discrimination, slurs
+- `HARASSMENT`: Threats, bullying, intimidation
+- `DANGEROUS_CONTENT`: Weapons, drugs, violence, self-harm
+- `CIVIC_INTEGRITY`: Election fraud, voter suppression
 
 ## Error Codes
 

@@ -1,5 +1,7 @@
 # Troubleshooting Guide
 
+> **Primary Responsibility:** Problem diagnosis and resolution for all issue types
+
 This guide helps diagnose and resolve common issues with the LLM Secure Gateway.
 
 ## Table of Contents
@@ -305,6 +307,96 @@ This guide helps diagnose and resolve common issues with the LLM Secure Gateway.
    docker run --env-file .env ...
    ```
 3. Confirm variable names match documentation
+
+## AI Safety Issues
+
+### Content Blocked Unexpectedly
+
+**Symptoms**:
+- Safe prompts are being blocked
+- False positives from AI safety check
+
+**Possible Causes**:
+- Toxicity threshold too low
+- Edge case in Gemini classification
+- Prompt contains keywords triggering false positives
+
+**Solutions**:
+1. Increase toxicity threshold:
+   ```bash
+   TOXICITY_THRESHOLD=0.8  # Default is 0.7
+   ```
+2. Check which category triggered the block in the response
+3. Review the prompt for unintended keywords
+4. Test the prompt directly with `/check-toxicity` endpoint
+
+### Gemini Safety API Errors
+
+**Symptoms**:
+- Errors mentioning Gemini API
+- Safety check falling back to Lakera
+
+**Possible Causes**:
+- Invalid or expired GEMINI_API_KEY
+- Gemini API quota exhausted
+- Network connectivity issues
+
+**Solutions**:
+1. Verify GEMINI_API_KEY is valid:
+   ```bash
+   curl -X POST "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$GEMINI_API_KEY" \
+     -H "Content-Type: application/json" \
+     -d '{"contents":[{"parts":[{"text":"Hello"}]}]}'
+   ```
+2. Check Gemini API quota in Google Cloud Console
+3. Add LAKERA_API_KEY for reliable fallback
+
+### Lakera Guard Fallback Issues
+
+**Symptoms**:
+- Both Gemini and Lakera failing
+- No safety check available
+
+**Possible Causes**:
+- LAKERA_API_KEY not configured
+- Lakera API key invalid
+- Both services experiencing outages
+
+**Solutions**:
+1. Add LAKERA_API_KEY for fallback:
+   ```bash
+   LAKERA_API_KEY=your_lakera_key
+   ```
+2. Test Lakera key directly:
+   ```bash
+   curl -X POST "https://api.lakera.ai/v2/guard" \
+     -H "Authorization: Bearer $LAKERA_API_KEY" \
+     -H "Content-Type: application/json" \
+     -d '{"messages":[{"content":"test","role":"user"}]}'
+   ```
+3. Check Lakera status page for outages
+
+### Harmful Content Not Being Blocked
+
+**Symptoms**:
+- Harmful prompts passing safety checks
+- AI generating inappropriate content
+
+**Possible Causes**:
+- Toxicity threshold too high
+- Gemini API not properly configured
+- Prompt using evasion techniques
+
+**Solutions**:
+1. Lower toxicity threshold:
+   ```bash
+   TOXICITY_THRESHOLD=0.5
+   ```
+2. Verify GEMINI_API_KEY is set correctly
+3. Add LAKERA_API_KEY for additional detection
+4. Review and update prompt injection patterns
+
+---
 
 ## Security Concerns
 

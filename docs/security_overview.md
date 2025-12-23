@@ -1,5 +1,7 @@
 # Security Overview
 
+> **Primary Responsibility:** Detailed security architecture, threat model, and compliance
+
 Multi-layer security architecture for the Enterprise AI Gateway.
 
 ## Security Layers
