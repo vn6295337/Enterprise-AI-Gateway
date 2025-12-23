@@ -1454,6 +1454,8 @@
       
       // Run steps
       for (const step of scenario.steps) {
+        await checkPausePoint();  // Pause checkpoint before each step
+
         // Execute action first to check if it's a fallback scenario
         const result = step.action();
 
@@ -1471,6 +1473,7 @@
           updatePipelineVisual(step.id, 'running');
           appendLog(getDetailedStepMessage(step.id, 'running', context));
           await new Promise(r => setTimeout(r, 1200));
+          await checkPausePoint();  // Pause checkpoint after step animation
         }
 
         if (result.status === 'pass') {
@@ -1486,6 +1489,7 @@
           lastRunData.steps.push({id: step.id, status: 'pass'});
           // Allow time for connector line animation to complete
           await new Promise(r => setTimeout(r, 600));
+          await checkPausePoint();  // Pause checkpoint after pass
         } else if (result.status === 'block' || result.status === 'fail') {
           updatePipelineVisual(step.id, 'block');
           // Add appropriate commentary
@@ -1519,6 +1523,8 @@
           let failedModelsInThisTest = 0;
 
           for (const p of result.path) {
+            await checkPausePoint();  // Pause checkpoint before each provider attempt
+
             const [providerModel, outcome] = p.split(':');
             const parsed = parseProviderModel(providerModel);
             const { baseProvider, fullDisplayName } = parsed;
@@ -1535,12 +1541,14 @@
             };
             appendLog(getDetailedStepMessage('router', 'running', routerContext));
             await new Promise(r => setTimeout(r, 1000));
+            await checkPausePoint();  // Pause checkpoint after router animation
 
             // Light up the provider badge (based on base provider)
             if (baseProvider === 'gemini') lightProvider('gemini', outcome, outcome==='success'?120:0);
             if (baseProvider === 'groq') lightProvider('groq', outcome, outcome==='success'?87:0);
             if (baseProvider === 'openrouter') lightProvider('open', outcome, outcome==='success'?200:0);
             await new Promise(r => setTimeout(r, 800));
+            await checkPausePoint();  // Pause checkpoint after provider badge
 
             lastRunData.providerPath.push({provider: fullDisplayName, outcome});
 
@@ -1565,10 +1573,11 @@
               // Deactivate router (go back to inactive state)
               const routerNode = document.getElementById('step-router');
               if (routerNode) {
-                routerNode.classList.remove('active', 'pulse-highlight');
+                routerNode.classList.remove('active', 'pulse-highlight', 'pulse-highlight-success', 'pulse-highlight-blocked');
                 routerNode.classList.add('opacity-50');
               }
               await new Promise(r => setTimeout(r, 600));
+              await checkPausePoint();  // Pause checkpoint after provider failure
             } else if (outcome === 'success') {
               // Model succeeded - router passes, then show inferencing
               addCommentary(`Attempting ${fullDisplayName}... Success!`);
@@ -1580,6 +1589,7 @@
               appendLog(getDetailedStepMessage('router', 'pass', passContext));
               updatePipelineVisual('router', 'pass');
               await new Promise(r => setTimeout(r, 800));
+              await checkPausePoint();  // Pause checkpoint after router success
 
               // Now show inferencing (provider step)
               updatePipelineVisual('provider', 'running');
@@ -1589,6 +1599,7 @@
               };
               appendLog(getDetailedStepMessage('provider', 'running', inferenceContext));
               await new Promise(r => setTimeout(r, 1200));
+              await checkPausePoint();  // Pause checkpoint after inferencing animation
 
               // Inferencing complete
               lastRunData.provider = fullDisplayName;
