@@ -2284,18 +2284,31 @@
         return;
       }
 
+      // Sanitize input before JSON parsing (remove BOM, normalize whitespace)
+      const sanitizedInput = customPrompt
+        .replace(/^\uFEFF/, '')           // Remove BOM
+        .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove zero-width chars
+        .trim();
+
       // Check if input is a JSON array of prompts
       let prompts = [customPrompt];
       try {
-        const parsed = JSON.parse(customPrompt);
+        const parsed = JSON.parse(sanitizedInput);
         if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(p => typeof p === 'string')) {
           prompts = parsed;
+          appendLog(`BATCH: Detected ${prompts.length} prompts in JSON array`);
         } else if (Array.isArray(parsed) && parsed.length === 0) {
           appendLog('ERROR: Empty array provided. Please enter at least one prompt.');
           return;
+        } else {
+          appendLog('BATCH: Input parsed as JSON but not a string array, treating as single prompt');
         }
       } catch (e) {
-        // Not JSON, treat as single prompt
+        // Log why parsing failed (helps debug format issues)
+        if (sanitizedInput.startsWith('[')) {
+          appendLog(`BATCH: Input looks like JSON array but failed to parse: ${e.message}`);
+        }
+        // Not JSON, treat as single prompt (this is normal for regular text input)
       }
 
       // If multiple prompts, run sequentially
