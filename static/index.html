@@ -2274,6 +2274,11 @@
       const maxTokens = parseInt(document.getElementById('input-max-tokens').value) || 256;
       const temperature = parseFloat(document.getElementById('input-temp').value) || 0.7;
 
+      // Debug: Show raw input info
+      console.log('DEBUG: Raw input length:', customPrompt.length);
+      console.log('DEBUG: First 5 chars:', JSON.stringify(customPrompt.substring(0, 5)));
+      console.log('DEBUG: Starts with [:', customPrompt.startsWith('['));
+
       if (!customPrompt) {
         appendLog('ERROR: Please enter a prompt first.');
         return;
@@ -2288,7 +2293,11 @@
       const sanitizedInput = customPrompt
         .replace(/^\uFEFF/, '')           // Remove BOM
         .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove zero-width chars
+        .replace(/[\u201C\u201D]/g, '"')  // Replace smart quotes with regular quotes
         .trim();
+
+      // Debug: Log sanitized input
+      appendLog(`DEBUG: Input starts with "${sanitizedInput.substring(0, 20)}..."`);
 
       // Check if input is a JSON array of prompts
       let prompts = [customPrompt];
@@ -2305,6 +2314,7 @@
         }
       } catch (e) {
         // Log why parsing failed (helps debug format issues)
+        appendLog(`DEBUG: JSON parse failed: ${e.message}`);
         if (sanitizedInput.startsWith('[')) {
           appendLog(`BATCH: Input looks like JSON array but failed to parse: ${e.message}`);
         }
