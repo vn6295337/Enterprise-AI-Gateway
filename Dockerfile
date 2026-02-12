@@ -7,7 +7,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Cache bust: increment to force rebuild of layers below
-ARG CACHE_BUST=9
+ARG CACHE_BUST=10
 RUN echo "Build version: $CACHE_BUST"
 
 # Copy application code from src directory
