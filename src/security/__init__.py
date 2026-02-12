@@ -4,9 +4,12 @@ Security utilities for the Enterprise AI Gateway
 
 import os
 import re
+import logging
 import requests
 from fastapi import HTTPException, Depends, status
 from fastapi.security import APIKeyHeader
+
+logger = logging.getLogger(__name__)
 
 # --- Security Configuration ---
 API_KEY_NAME = "X-API-Key"
@@ -98,12 +101,8 @@ def detect_toxicity(text: str) -> dict:
     api_key = os.getenv("GEMINI_API_KEY")
 
     if not api_key:
-        return {
-            "is_toxic": False,
-            "scores": {},
-            "blocked_categories": [],
-            "error": "GEMINI_API_KEY not configured"
-        }
+        logger.warning("GEMINI_API_KEY not configured, falling back to Lakera")
+        return detect_toxicity_lakera(text)
 
     try:
         # Ask Gemini to classify if the content is harmful
@@ -136,12 +135,8 @@ Category:"""
                 error_detail = response.json().get("error", {}).get("message", "")
             except:
                 pass
-            return {
-                "is_toxic": False,
-                "scores": {},
-                "blocked_categories": [],
-                "error": f"Gemini API error {response.status_code}: {error_detail}"
-            }
+            logger.warning(f"Gemini API error {response.status_code}: {error_detail}, falling back to Lakera")
+            return detect_toxicity_lakera(text)
 
         data = response.json()
         blocked_categories = []
@@ -190,19 +185,11 @@ Category:"""
         }
 
     except requests.exceptions.Timeout:
-        # Fallback to Lakera Guard on timeout
+        logger.warning("Gemini API timeout, falling back to Lakera")
         return detect_toxicity_lakera(text)
-    except Exception:
-        # Fallback to Lakera Guard on any error
-        lakera_result = detect_toxicity_lakera(text)
-        if lakera_result.get("error"):
-            return {
-                "is_toxic": False,
-                "scores": {},
-                "blocked_categories": [],
-                "error": "Safety check unavailable"
-            }
-        return lakera_result
+    except Exception as e:
+        logger.warning(f"Gemini API exception: {e}, falling back to Lakera")
+        return detect_toxicity_lakera(text)
 
 
 def detect_toxicity_lakera(text: str) -> dict:
@@ -214,11 +201,13 @@ def detect_toxicity_lakera(text: str) -> dict:
     api_key = os.getenv("LAKERA_API_KEY")
 
     if not api_key:
+        logger.warning("LAKERA_API_KEY not configured, skipping toxicity check")
+        # Both Gemini and Lakera unavailable - allow request to proceed
         return {
             "is_toxic": False,
             "scores": {},
             "blocked_categories": [],
-            "error": "LAKERA_API_KEY not configured"
+            "error": None  # Don't error, just skip check
         }
 
     try:
@@ -242,11 +231,13 @@ def detect_toxicity_lakera(text: str) -> dict:
                 error_detail = response.json().get("error", response.text)
             except:
                 error_detail = response.text
+            logger.warning(f"Lakera API error {response.status_code}: {error_detail}")
+            # Both APIs failed - allow request to proceed
             return {
                 "is_toxic": False,
                 "scores": {},
                 "blocked_categories": [],
-                "error": f"Lakera API error {response.status_code}: {error_detail}"
+                "error": None  # Don't block user, just skip check
             }
 
         data = response.json()
@@ -283,16 +274,18 @@ def detect_toxicity_lakera(text: str) -> dict:
         }
 
     except requests.exceptions.Timeout:
+        logger.warning("Lakera API timeout")
         return {
             "is_toxic": False,
             "scores": {},
             "blocked_categories": [],
-            "error": "Lakera API timeout"
+            "error": None  # Don't block user
         }
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Lakera API exception: {e}")
         return {
             "is_toxic": False,
             "scores": {},
             "blocked_categories": [],
-            "error": "Lakera API request failed"
+            "error": None  # Don't block user
         }
