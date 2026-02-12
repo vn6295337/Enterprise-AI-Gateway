@@ -899,15 +899,7 @@
         alert('No log entries to download.');
         return;
       }
-      let logContent = statusMessages.join('\n');
-
-      // Append full response if available (since displayed log truncates at 300 chars)
-      if (lastRunData && lastRunData.response) {
-        logContent += '\n\n' + '='.repeat(60);
-        logContent += '\nFULL RESPONSE:\n' + '='.repeat(60);
-        logContent += '\n' + lastRunData.response;
-      }
-
+      const logContent = statusMessages.join('\n');
       const blob = new Blob([logContent], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -2256,7 +2248,7 @@
             appendLog(`COST: ~$${data.cost_estimate_usd.toFixed(6)}`);
           }
           appendLog('---');
-          appendLog(`RESPONSE: ${data.response.substring(0, 300)}${data.response.length > 300 ? '...' : ''}`);
+          appendLog(`RESPONSE: ${data.response}`);
 
           // Store for download
           lastRunData = {
