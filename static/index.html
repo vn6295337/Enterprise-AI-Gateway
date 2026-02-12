@@ -899,7 +899,15 @@
         alert('No log entries to download.');
         return;
       }
-      const logContent = statusMessages.join('\n');
+      let logContent = statusMessages.join('\n');
+
+      // Append full response if available (since displayed log truncates at 300 chars)
+      if (lastRunData && lastRunData.response) {
+        logContent += '\n\n' + '='.repeat(60);
+        logContent += '\nFULL RESPONSE:\n' + '='.repeat(60);
+        logContent += '\n' + lastRunData.response;
+      }
+
       const blob = new Blob([logContent], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
