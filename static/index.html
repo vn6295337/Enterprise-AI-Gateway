@@ -1993,34 +1993,10 @@
       metricStatus.textContent = 'Ready';
     });
 
-    // Execute custom prompt handler - REAL API CALL
-    document.getElementById('execute-custom')?.addEventListener('click', async () => {
-      // Abort any running scenario first
-      abortCurrentScenario();
-
-      // Clear execution log and commentary
-      statusMessageCounter = 0;
-      statusMessages = [];
-      executionLog.innerHTML = '';
-      commentaryFeed.innerHTML = '';
-
-      // Reset pipeline visuals
+    // Helper function to execute a single prompt through the API pipeline
+    async function executeSinglePrompt(prompt, apiKey, maxTokens, temperature) {
+      // Reset pipeline visuals for this prompt
       clearPipelineVisuals();
-
-      const customPrompt = document.getElementById('input-prompt').value;
-      const apiKey = document.getElementById('input-api').value;
-      const maxTokens = parseInt(document.getElementById('input-max-tokens').value) || 256;
-      const temperature = parseFloat(document.getElementById('input-temp').value) || 0.7;
-
-      if (!customPrompt || !customPrompt.trim()) {
-        appendLog('ERROR: Please enter a prompt first.');
-        return;
-      }
-
-      if (!apiKey || !apiKey.trim()) {
-        appendLog('ERROR: Please enter a valid API key.');
-        return;
-      }
 
       // Rate limit check (DDoS protection)
       const rateCheck = rateLimiter.check();
@@ -2032,30 +2008,28 @@
         appendLog('RATE LIMIT: Click "Reset Limit" button to reset (demo only)');
         metricStatus.textContent = 'Rate Limited';
         lastRunData = { scenario: 'custom', final: 'error', error: 'Rate limit exceeded' };
-        // Show reset button for recruiters/demo
         if (resetLimitBtn) resetLimitBtn.classList.remove('hidden');
-        return;
+        return { success: false, error: 'Rate limit exceeded' };
       }
-      // Hide reset button when not rate limited
       if (resetLimitBtn) resetLimitBtn.classList.add('hidden');
       appendLog(`RATE LIMIT: Request allowed (${rateCheck.remaining} remaining)`);
       await new Promise(r => setTimeout(r, 400));
 
       // Token limit check
       const MAX_INPUT_TOKENS = 4096;
-      const estimatedTokens = Math.ceil(customPrompt.length / 4);
+      const estimatedTokens = Math.ceil(prompt.length / 4);
       if (estimatedTokens > MAX_INPUT_TOKENS) {
         updatePipelineVisual('auth', 'fail');
         appendLog(`TOKEN LIMIT: Input too long (~${estimatedTokens} tokens)`);
         appendLog(`TOKEN LIMIT: Maximum allowed is ${MAX_INPUT_TOKENS} tokens`);
         metricStatus.textContent = 'Rejected';
         lastRunData = { scenario: 'custom', final: 'error', error: 'Input exceeds token limit' };
-        return;
+        return { success: false, error: 'Input exceeds token limit' };
       }
       appendLog(`TOKEN CHECK: ~${estimatedTokens} input tokens (max ${MAX_INPUT_TOKENS})`);
       await new Promise(r => setTimeout(r, 400));
 
-      // Step 1: Auth - Running (show while making API call)
+      // Step 1: Auth - Running
       updatePipelineVisual('auth', 'running');
       appendLog('AUTH: Validating API key...');
 
@@ -2067,7 +2041,7 @@
             'X-API-Key': apiKey
           },
           body: JSON.stringify({
-            prompt: customPrompt,
+            prompt: prompt,
             max_tokens: maxTokens,
             temperature: temperature
           })
@@ -2081,7 +2055,7 @@
           appendLog('AUTH: Invalid API key');
           metricStatus.textContent = 'Failed';
           lastRunData = { scenario: 'custom', final: 'error', error: 'Invalid API key' };
-          return;
+          return { success: false, error: 'Invalid API key' };
         }
 
         // Auth passed
@@ -2105,14 +2079,14 @@
           /drop\s+table/i,
           /execute\s+command/i
         ];
-        const hasInjection = injectionPatterns.some(pattern => pattern.test(customPrompt));
+        const hasInjection = injectionPatterns.some(pattern => pattern.test(prompt));
 
         if (hasInjection) {
           updatePipelineVisual('input', 'fail');
           appendLog('GUARD: ⚠️ Injection pattern detected - BLOCKED');
           metricStatus.textContent = 'Blocked';
           lastRunData = { scenario: 'custom', final: 'blocked', error: 'Injection pattern detected' };
-          return;
+          return { success: false, error: 'Injection pattern detected' };
         }
         appendLog('GUARD: No injection patterns found');
         await new Promise(r => setTimeout(r, 600));
@@ -2121,13 +2095,13 @@
         await new Promise(r => setTimeout(r, 600));
 
         // Check for PII patterns
-        const piiDetection = detectPII(customPrompt);
+        const piiDetection = detectPII(prompt);
         if (piiDetection.hasPII) {
           updatePipelineVisual('input', 'fail');
           appendLog(`GUARD: ⚠️ PII detected (${piiDetection.piiTypes.join(', ')}) - BLOCKED`);
           metricStatus.textContent = 'Blocked';
           lastRunData = { scenario: 'custom', final: 'blocked', error: `PII detected: ${piiDetection.piiTypes.join(', ')}` };
-          return;
+          return { success: false, error: `PII detected: ${piiDetection.piiTypes.join(', ')}` };
         }
         appendLog('GUARD: No PII exposure found');
         await new Promise(r => setTimeout(r, 400));
@@ -2140,17 +2114,16 @@
           const toxicityResponse = await fetch('/check-toxicity', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: customPrompt })
+            body: JSON.stringify({ text: prompt })
           });
           const toxicityData = await toxicityResponse.json();
 
           if (toxicityData.error) {
-            // If GEMINI_API_KEY not configured, show error
             updatePipelineVisual('input', 'fail');
             appendLog(`GUARD: Gemini Safety error: ${toxicityData.error}`);
             metricStatus.textContent = 'Config Error';
             lastRunData = { scenario: 'custom', final: 'error', error: toxicityData.error };
-            return;
+            return { success: false, error: toxicityData.error };
           } else if (toxicityData.is_toxic) {
             updatePipelineVisual('input', 'fail');
             const categories = toxicityData.blocked_categories
@@ -2161,9 +2134,8 @@
             appendLog(`GUARD: Categories: ${categories} (${(topScore * 100).toFixed(0)}% confidence)`);
             metricStatus.textContent = 'Blocked';
             lastRunData = { scenario: 'custom', final: 'blocked', error: `Toxic content: ${categories}` };
-            return;
+            return { success: false, error: `Toxic content: ${categories}` };
           } else {
-            // Show top scores for transparency
             const scores = toxicityData.scores;
             if (Object.keys(scores).length > 0) {
               const topAttr = Object.entries(scores).sort((a, b) => b[1] - a[1])[0];
@@ -2173,7 +2145,7 @@
           }
         } catch (toxErr) {
           appendLog('GUARD: Gemini Safety API unavailable');
-          return;
+          return { success: false, error: 'Gemini Safety API unavailable' };
         }
         appendLog('GUARD: AI safety check passed');
         await new Promise(r => setTimeout(r, 400));
@@ -2191,7 +2163,7 @@
           }
           metricStatus.textContent = 'Blocked';
           lastRunData = { scenario: 'custom', final: 'blocked', error: data.detail };
-          return;
+          return { success: false, error: data.detail };
         }
 
         // Guard passed
@@ -2205,7 +2177,7 @@
           appendLog('ROUTE: Rate limit exceeded');
           metricStatus.textContent = 'Rate Limited';
           lastRunData = { scenario: 'custom', final: 'error', error: 'Rate limited' };
-          return;
+          return { success: false, error: 'Rate limited' };
         }
 
         // Step 3: Router - Running
@@ -2213,7 +2185,7 @@
         appendLog('ROUTE: Analyzing task complexity...');
         await new Promise(r => setTimeout(r, 600));
 
-        // Show cascade path if available (before provider selected)
+        // Show cascade path if available
         if (data.cascade_path && data.cascade_path.length > 0) {
           for (const step of data.cascade_path) {
             if (step.status === 'failed' || step.status === 'timeout') {
@@ -2254,7 +2226,7 @@
           lastRunData = {
             scenario: 'custom',
             title: 'Custom Prompt (Real API)',
-            prompt: customPrompt,
+            prompt: prompt,
             provider: data.provider,
             latency: data.latency_ms,
             response: data.response,
@@ -2263,12 +2235,15 @@
             final: 'success'
           };
 
+          return { success: true, data: data };
+
         } else {
           // Other error
           updatePipelineVisual('provider', 'fail');
           appendLog(`ERROR: ${data.detail || 'Request failed'}`);
           metricStatus.textContent = 'Failed';
           lastRunData = { scenario: 'custom', final: 'error', error: data.detail };
+          return { success: false, error: data.detail };
         }
 
       } catch (error) {
@@ -2276,6 +2251,95 @@
         appendLog(`NETWORK ERROR: ${error.message}`);
         metricStatus.textContent = 'Error';
         lastRunData = { scenario: 'custom', final: 'error', error: error.message };
+        return { success: false, error: error.message };
+      }
+    }
+
+    // Execute custom prompt handler - REAL API CALL
+    document.getElementById('execute-custom')?.addEventListener('click', async () => {
+      // Abort any running scenario first
+      abortCurrentScenario();
+
+      // Clear execution log and commentary
+      statusMessageCounter = 0;
+      statusMessages = [];
+      executionLog.innerHTML = '';
+      commentaryFeed.innerHTML = '';
+
+      // Reset pipeline visuals
+      clearPipelineVisuals();
+
+      const customPrompt = document.getElementById('input-prompt').value.trim();
+      const apiKey = document.getElementById('input-api').value;
+      const maxTokens = parseInt(document.getElementById('input-max-tokens').value) || 256;
+      const temperature = parseFloat(document.getElementById('input-temp').value) || 0.7;
+
+      if (!customPrompt) {
+        appendLog('ERROR: Please enter a prompt first.');
+        return;
+      }
+
+      if (!apiKey || !apiKey.trim()) {
+        appendLog('ERROR: Please enter a valid API key.');
+        return;
+      }
+
+      // Check if input is a JSON array of prompts
+      let prompts = [customPrompt];
+      try {
+        const parsed = JSON.parse(customPrompt);
+        if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(p => typeof p === 'string')) {
+          prompts = parsed;
+        } else if (Array.isArray(parsed) && parsed.length === 0) {
+          appendLog('ERROR: Empty array provided. Please enter at least one prompt.');
+          return;
+        }
+      } catch (e) {
+        // Not JSON, treat as single prompt
+      }
+
+      // If multiple prompts, run sequentially
+      if (prompts.length > 1) {
+        isBatchMode = true;
+        batchTotal = prompts.length;
+        appendLog(`Starting sequential execution of ${prompts.length} prompts...`);
+        appendLog('═'.repeat(50));
+
+        let successCount = 0;
+        let failCount = 0;
+
+        for (let i = 0; i < prompts.length; i++) {
+          currentScenarioNum = i + 1;
+          const promptPreview = prompts[i].substring(0, 50) + (prompts[i].length > 50 ? '...' : '');
+          appendLog(`\n▶ PROMPT ${i + 1}/${prompts.length}: ${promptPreview}`);
+          appendLog('─'.repeat(40));
+
+          // Execute single prompt
+          const result = await executeSinglePrompt(prompts[i], apiKey, maxTokens, temperature);
+
+          if (result.success) {
+            successCount++;
+          } else {
+            failCount++;
+          }
+
+          // Brief delay between prompts
+          if (i < prompts.length - 1) {
+            appendLog('');
+            await new Promise(r => setTimeout(r, 1000));
+          }
+        }
+
+        appendLog('');
+        appendLog('═'.repeat(50));
+        appendLog(`Completed ${prompts.length} prompts: ${successCount} succeeded, ${failCount} failed.`);
+        metricStatus.textContent = `Batch: ${successCount}/${prompts.length}`;
+        isBatchMode = false;
+        currentScenarioNum = 0;
+        batchTotal = 0;
+      } else {
+        // Single prompt execution
+        await executeSinglePrompt(customPrompt, apiKey, maxTokens, temperature);
       }
     });
     
