@@ -1793,7 +1793,7 @@
         if (buttonStates[key] === 'running' || buttonStates[key] === 'paused') {
           // Abort the controller
           if (abortControllers[key]) {
-            abortControllers[key].abort();
+            abortControllers[key].abort('User cancelled');
             abortControllers[key] = null;
           }
           // Reset state
