@@ -11,7 +11,7 @@ from slowapi.util import get_remote_address
 from pydantic import BaseModel
 
 from ..models import QueryRequest, QueryResponse, HealthResponse
-from ..security import validate_api_key, detect_pii, detect_prompt_injection, detect_toxicity
+from ..security import validate_api_key, detect_pii, detect_prompt_injection, detect_toxicity, detect_hate_speech
 from ..llm.client import llm_client
 from ..config import RATE_LIMIT, SERVICE_API_KEY
 from ..metrics import metrics
@@ -60,9 +60,46 @@ async def health_check(request: Request):
 async def query_llm(request: Request, query: QueryRequest, api_key: str = Depends(validate_api_key)):
     """Query LLM with security and fallback protocols"""
 
-    # 1. Input Validation is handled by Pydantic models automatically before this line
+    # ========== LAYER 1: Regex-based pre-screening ==========
 
-    # 2. Execute Logic
+    # 1a. Prompt injection check (already done in Pydantic model, but double-check)
+    if detect_prompt_injection(query.prompt):
+        metrics.record_request(blocked=True)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Security Alert: Prompt injection pattern detected"
+        )
+
+    # 1b. PII detection
+    pii_result = detect_pii(query.prompt)
+    if pii_result["has_pii"]:
+        metrics.record_request(blocked=True)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Security Alert: PII detected ({', '.join(pii_result['pii_types'])})"
+        )
+
+    # 1c. Hate speech pre-screening
+    hate_result = detect_hate_speech(query.prompt)
+    if hate_result["is_hate_speech"]:
+        metrics.record_request(blocked=True)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Security Alert: Hate speech detected"
+        )
+
+    # ========== LAYER 2: AI-based safety check (Lakera/Gemini) ==========
+    # Only runs if regex layer passes
+    toxicity_result = detect_toxicity(query.prompt)
+    if toxicity_result["is_toxic"]:
+        categories = ", ".join(toxicity_result["blocked_categories"]) or "harmful content"
+        metrics.record_request(blocked=True)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Security Alert: Content flagged by AI safety ({categories})"
+        )
+
+    # ========== LAYER 3: LLM Execution ==========
     response_content, provider_used, latency_ms, error_message, cascade_path = await llm_client.query_llm_cascade(
         prompt=query.prompt,
         max_tokens=query.max_tokens,
