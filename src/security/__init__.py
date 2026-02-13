@@ -9,6 +9,8 @@ import requests
 from fastapi import HTTPException, Depends, status
 from fastapi.security import APIKeyHeader
 
+from ..config import TOXICITY_THRESHOLD_DEFAULT, TOXICITY_THRESHOLD_HATE
+
 logger = logging.getLogger(__name__)
 
 # --- Security Configuration ---
@@ -126,6 +128,72 @@ def detect_pii(prompt: str) -> dict:
         "pii_types": pii_types,
         "matches": matches
     }
+
+
+# --- Hate Speech Pre-Screening (Approach A) ---
+# Regex-based pre-screening for hate speech indicators
+# Runs BEFORE AI safety classifier to catch subtle hate speech
+HATE_SPEECH_PATTERNS = [
+    # Hate verbs targeting people/groups who are different
+    r"(hate|despise|loathe|detest|can'?t\s+stand|disgust).{0,30}(people|persons|those|them|everyone|anybody|anyone).{0,30}(who\s+are|who\s+look|who\s+come|different|foreign|other|not\s+like\s+me|unlike\s+me)",
+    r"(people|persons|those|them).{0,20}(who\s+are|who\s+look).{0,20}(different|foreign|other).{0,20}(are\s+)?(disgust|repuls|sicken|hate)",
+
+    # Dehumanizing language
+    r"(people|they|them|those).{0,20}(are\s+animals|are\s+subhuman|are\s+vermin|are\s+parasites|are\s+cockroaches)",
+    r"(people|they|them|those).{0,20}(don'?t\s+belong|should\s+go\s+back|should\s+be\s+removed|should\s+be\s+deported|have\s+no\s+place)",
+
+    # Supremacist framing
+    r"(superior|inferior|pure|impure).{0,20}(race|blood|people|kind|breed|stock)",
+    r"(our\s+kind|my\s+kind|our\s+people).{0,20}(better|superior|pure)",
+
+    # Direct expressions of hatred toward groups
+    r"(i\s+really\s+)?(hate|despise|loathe).{0,20}(people|those|them).{0,20}(different|like\s+them|foreign)",
+    r"(don'?t\s+look\s+like\s+me|different\s+from\s+me).{0,20}(disgust|hate|despise|loathe)",
+]
+
+# Patterns that indicate EDUCATIONAL context (should NOT block)
+HATE_SPEECH_EDUCATIONAL_PATTERNS = [
+    r"(explain|history|overcome|causes|why\s+do|what\s+causes|how\s+can\s+i|how\s+to\s+combat|how\s+to\s+fight|prevent|understand)",
+    r"(civil\s+rights|discrimination|prejudice|bias|racism).{0,20}(movement|history|explained|education)",
+]
+
+def detect_hate_speech(prompt: str) -> dict:
+    """
+    Pre-screen for hate speech indicators before AI safety classifier.
+    Returns: {is_hate_speech: bool, matched_pattern: str|None, is_educational: bool}
+    """
+    prompt_lower = prompt.lower()
+
+    # First check if this is educational context
+    is_educational = any(
+        re.search(pattern, prompt_lower, re.IGNORECASE)
+        for pattern in HATE_SPEECH_EDUCATIONAL_PATTERNS
+    )
+
+    # If educational, don't flag as hate speech
+    if is_educational:
+        return {
+            "is_hate_speech": False,
+            "matched_pattern": None,
+            "is_educational": True
+        }
+
+    # Check for hate speech patterns
+    for pattern in HATE_SPEECH_PATTERNS:
+        match = re.search(pattern, prompt_lower, re.IGNORECASE)
+        if match:
+            return {
+                "is_hate_speech": True,
+                "matched_pattern": match.group(),
+                "is_educational": False
+            }
+
+    return {
+        "is_hate_speech": False,
+        "matched_pattern": None,
+        "is_educational": False
+    }
+
 
 # --- API Key Validation ---
 async def validate_api_key(api_key: str = Depends(api_key_header)):

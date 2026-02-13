@@ -2176,6 +2176,41 @@
         appendLog('GUARD: No injection patterns found');
         await new Promise(r => setTimeout(r, 600));
 
+        // Check for hate speech patterns (pre-screening before AI safety)
+        appendLog('GUARD: Pre-screening for hate speech indicators...');
+        await new Promise(r => setTimeout(r, 400));
+
+        const hateSpeechPatterns = [
+          // Hate verbs targeting people/groups who are different
+          /(hate|despise|loathe|detest|can'?t\s+stand|disgust).{0,30}(people|persons|those|them|everyone|anybody|anyone).{0,30}(who\s+are|who\s+look|who\s+come|different|foreign|other|not\s+like\s+me|unlike\s+me)/i,
+          /(people|persons|those|them).{0,20}(who\s+are|who\s+look).{0,20}(different|foreign|other).{0,20}(are\s+)?(disgust|repuls|sicken|hate)/i,
+          // Dehumanizing language
+          /(people|they|them|those).{0,20}(are\s+animals|are\s+subhuman|are\s+vermin|are\s+parasites|are\s+cockroaches)/i,
+          /(people|they|them|those).{0,20}(don'?t\s+belong|should\s+go\s+back|should\s+be\s+removed|should\s+be\s+deported|have\s+no\s+place)/i,
+          // Supremacist framing
+          /(superior|inferior|pure|impure).{0,20}(race|blood|people|kind|breed|stock)/i,
+          /(our\s+kind|my\s+kind|our\s+people).{0,20}(better|superior|pure)/i,
+          // Direct expressions of hatred toward groups
+          /(i\s+really\s+)?(hate|despise|loathe).{0,20}(people|those|them).{0,20}(different|like\s+them|foreign)/i,
+          /(don'?t\s+look\s+like\s+me|different\s+from\s+me).{0,20}(disgust|hate|despise|loathe)/i,
+        ];
+        const educationalPatterns = [
+          /(explain|history|overcome|causes|why\s+do|what\s+causes|how\s+can\s+i|how\s+to\s+combat|how\s+to\s+fight|prevent|understand)/i,
+          /(civil\s+rights|discrimination|prejudice|bias|racism).{0,20}(movement|history|explained|education)/i,
+        ];
+        const isEducational = educationalPatterns.some(p => p.test(prompt));
+        const hasHateSpeech = !isEducational && hateSpeechPatterns.some(p => p.test(prompt));
+
+        if (hasHateSpeech) {
+          updatePipelineVisual('input', 'fail');
+          appendLog('GUARD: ⚠️ Hate speech detected - BLOCKED');
+          metricStatus.textContent = 'Blocked';
+          lastRunData = { scenario: 'custom', final: 'blocked', error: 'Hate speech detected' };
+          return { success: false, error: 'Hate speech detected' };
+        }
+        appendLog('GUARD: No hate speech indicators found');
+        await new Promise(r => setTimeout(r, 400));
+
         appendLog('GUARD: Checking for PII exposure...');
         await new Promise(r => setTimeout(r, 600));
 
