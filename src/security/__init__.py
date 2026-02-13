@@ -19,10 +19,22 @@ ENABLE_PROMPT_INJECTION_CHECK = os.getenv("ENABLE_PROMPT_INJECTION_CHECK", "true
 
 # --- Prompt Injection Detection ---
 INJECTION_PATTERNS = [
+    # Existing patterns - direct override attempts
     r"ignore\s+(all\s+)?(previous|above|prior)\s+instructions?",
     r"disregard\s+(all\s+)?(previous|above|prior)\s+instructions?",
     r"you\s+are\s+now",
     r"system\s*:\s*",
+
+    # Demonstration/example requests for attacks
+    r"(demonstrate|show|give\s+me|provide).{0,30}(injection|jailbreak|exploit|attack|bypass|hack)",
+    r"(example|sample|demo).{0,20}(of|for).{0,20}(injection|jailbreak|exploit|attack|bypass)",
+    r"(how\s+to|how\s+would|how\s+do\s+i|how\s+do\s+you).{0,30}(inject|jailbreak|exploit|bypass|hack)",
+    r"by\s+demonstrating.{0,20}(injection|jailbreak|exploit|attack|bypass|one)",
+    r"(injection|jailbreak|exploit|attack).{0,20}by\s+demonstrating",
+
+    # Simulate/role-play attack requests
+    r"(simulate|emulate|replicate|recreate).{0,30}(attack|injection|exploit|breach|hack)",
+    r"(pretend|act\s+as\s+if|imagine).{0,30}(hacked|breached|compromised|no.{0,10}filter)",
 ]
 
 def detect_prompt_injection(prompt: str) -> bool:
