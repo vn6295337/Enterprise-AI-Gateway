@@ -90,14 +90,18 @@ async def query_llm(request: Request, query: QueryRequest, api_key: str = Depend
 
     # ========== LAYER 2: AI-based safety check (Lakera/Gemini) ==========
     # Only runs if regex layer passes
-    toxicity_result = detect_toxicity(query.prompt)
-    if toxicity_result["is_toxic"]:
-        categories = ", ".join(toxicity_result["blocked_categories"]) or "harmful content"
-        metrics.record_request(blocked=True)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Security Alert: Content flagged by AI safety ({categories})"
-        )
+    # Skip for educational content (to avoid false positives on questions about hate/prejudice)
+    is_educational = hate_result.get("is_educational", False)
+
+    if not is_educational:
+        toxicity_result = detect_toxicity(query.prompt)
+        if toxicity_result["is_toxic"]:
+            categories = ", ".join(toxicity_result["blocked_categories"]) or "harmful content"
+            metrics.record_request(blocked=True)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Security Alert: Content flagged by AI safety ({categories})"
+            )
 
     # ========== LAYER 3: LLM Execution ==========
     response_content, provider_used, latency_ms, error_message, cascade_path = await llm_client.query_llm_cascade(
