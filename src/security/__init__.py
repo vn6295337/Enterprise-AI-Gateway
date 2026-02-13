@@ -35,6 +35,28 @@ INJECTION_PATTERNS = [
     # Simulate/role-play attack requests
     r"(simulate|emulate|replicate|recreate).{0,30}(attack|injection|exploit|breach|hack)",
     r"(pretend|act\s+as\s+if|imagine).{0,30}(hacked|breached|compromised|no.{0,10}filter)",
+
+    # Ignore/disable safety patterns (embedded in any context)
+    r"ignore\s+(all\s+)?(safety|filter|restriction|guideline|rule|moderation)",
+    r"(disable|remove|bypass|skip)\s+(all\s+)?(safety|filter|restriction|moderation)",
+
+    # Completion attacks (asking to complete sensitive phrases)
+    r"complete\s+(this|the)?\s*(sentence|phrase|text).{0,30}(password|secret|credential|key)",
+
+    # Repeat-after-me attacks
+    r"(repeat\s+after|say\s+after|copy\s+this).{0,30}(no\s+restriction|no\s+filter|no\s+limit|no\s+rule)",
+    r"(repeat\s+after|say\s+after).{0,10}(me|this)",
+
+    # Role-play without safety
+    r"role.?play.{0,30}(without|no)\s+(any\s+)?(safety|filter|guideline|restriction|rule)",
+    r"(act|behave|respond)\s+as\s+(if|though).{0,20}(no|without).{0,10}(filter|safety|restriction)",
+    r"ai\s+without\s+(any\s+)?(safety|filter|guideline|restriction)",
+
+    # Hypothetical bypass requests
+    r"(hypothetically|theoretically|in\s+theory).{0,30}(bypass|hack|inject|jailbreak|exploit)",
+
+    # Encoded instruction attacks
+    r"(base64|encoded|decrypt|decode).{0,20}(instruction|command|message|this)",
 ]
 
 def detect_prompt_injection(prompt: str) -> bool:

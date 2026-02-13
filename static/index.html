@@ -1488,7 +1488,23 @@
               /(injection|jailbreak|exploit|attack).{0,20}by\s+demonstrating/i,
               // Simulate/role-play attack requests
               /(simulate|emulate|replicate|recreate).{0,30}(attack|injection|exploit|breach|hack)/i,
-              /(pretend|act\s+as\s+if|imagine).{0,30}(hacked|breached|compromised|no.{0,10}filter)/i
+              /(pretend|act\s+as\s+if|imagine).{0,30}(hacked|breached|compromised|no.{0,10}filter)/i,
+              // Ignore/disable safety patterns
+              /ignore\s+(all\s+)?(safety|filter|restriction|guideline|rule|moderation)/i,
+              /(disable|remove|bypass|skip)\s+(all\s+)?(safety|filter|restriction|moderation)/i,
+              // Completion attacks
+              /complete\s+(this|the)?\s*(sentence|phrase|text).{0,30}(password|secret|credential|key)/i,
+              // Repeat-after-me attacks
+              /(repeat\s+after|say\s+after|copy\s+this).{0,30}(no\s+restriction|no\s+filter|no\s+limit|no\s+rule)/i,
+              /(repeat\s+after|say\s+after).{0,10}(me|this)/i,
+              // Role-play without safety
+              /role.?play.{0,30}(without|no)\s+(any\s+)?(safety|filter|guideline|restriction|rule)/i,
+              /(act|behave|respond)\s+as\s+(if|though).{0,20}(no|without).{0,10}(filter|safety|restriction)/i,
+              /ai\s+without\s+(any\s+)?(safety|filter|guideline|restriction)/i,
+              // Hypothetical bypass requests
+              /(hypothetically|theoretically|in\s+theory).{0,30}(bypass|hack|inject|jailbreak|exploit)/i,
+              // Encoded instruction attacks
+              /(base64|encoded|decrypt|decode).{0,20}(instruction|command|message|this)/i
             ];
 
             // Check for PII patterns
@@ -2130,7 +2146,23 @@
           /(injection|jailbreak|exploit|attack).{0,20}by\s+demonstrating/i,
           // Simulate/role-play attack requests
           /(simulate|emulate|replicate|recreate).{0,30}(attack|injection|exploit|breach|hack)/i,
-          /(pretend|act\s+as\s+if|imagine).{0,30}(hacked|breached|compromised|no.{0,10}filter)/i
+          /(pretend|act\s+as\s+if|imagine).{0,30}(hacked|breached|compromised|no.{0,10}filter)/i,
+          // Ignore/disable safety patterns
+          /ignore\s+(all\s+)?(safety|filter|restriction|guideline|rule|moderation)/i,
+          /(disable|remove|bypass|skip)\s+(all\s+)?(safety|filter|restriction|moderation)/i,
+          // Completion attacks
+          /complete\s+(this|the)?\s*(sentence|phrase|text).{0,30}(password|secret|credential|key)/i,
+          // Repeat-after-me attacks
+          /(repeat\s+after|say\s+after|copy\s+this).{0,30}(no\s+restriction|no\s+filter|no\s+limit|no\s+rule)/i,
+          /(repeat\s+after|say\s+after).{0,10}(me|this)/i,
+          // Role-play without safety
+          /role.?play.{0,30}(without|no)\s+(any\s+)?(safety|filter|guideline|restriction|rule)/i,
+          /(act|behave|respond)\s+as\s+(if|though).{0,20}(no|without).{0,10}(filter|safety|restriction)/i,
+          /ai\s+without\s+(any\s+)?(safety|filter|guideline|restriction)/i,
+          // Hypothetical bypass requests
+          /(hypothetically|theoretically|in\s+theory).{0,30}(bypass|hack|inject|jailbreak|exploit)/i,
+          // Encoded instruction attacks
+          /(base64|encoded|decrypt|decode).{0,20}(instruction|command|message|this)/i
         ];
         const hasInjection = injectionPatterns.some(pattern => pattern.test(prompt));
 
