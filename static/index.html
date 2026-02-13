@@ -490,7 +490,20 @@
         // Medical Records - DOB patterns
         medicalDOB: new RegExp('(DOB|date\\s+of\\s+birth|d\\.o\\.b\\.?)[\\s:]+\\d{1,2}[/\\-]\\d{1,2}[/\\-]\\d{2,4}', 'i'),
         // Medical Records - MRN patterns
-        medicalMRN: new RegExp('(MRN|medical\\s+record|patient\\s+id|patient\\s+number)[\\s:#\\-]+\\d{4,}', 'i')
+        medicalMRN: new RegExp('(MRN|medical\\s+record|patient\\s+id|patient\\s+number)[\\s:#\\-]+\\d{4,}', 'i'),
+
+        // Phone Numbers - US formats
+        phoneUS: new RegExp('\\b(\\+?1[\\s\\-.]?)?\\(?\\d{3}\\)?[\\s\\-.]?\\d{3}[\\s\\-.]?\\d{4}\\b'),
+        // Phone Numbers - International with + prefix
+        phoneIntl: new RegExp('\\+\\d{1,3}[\\s\\-.]?\\d{2,4}[\\s\\-.]?\\d{3,4}[\\s\\-.]?\\d{3,4}\\b'),
+
+        // IBAN - International Bank Account Number
+        iban: new RegExp('\\b[A-Z]{2}\\d{2}[\\s]?[A-Z0-9]{4}[\\s]?[A-Z0-9]{4}[\\s]?[A-Z0-9]{4}[\\s]?[A-Z0-9]{0,14}\\b'),
+
+        // Password - Labeled patterns
+        passwordLabeled: new RegExp('(password|passwd|pwd|pass)[\\s:=]+\\S+', 'i'),
+        // Database connection strings with credentials
+        dbConnection: new RegExp('(postgres|mysql|mongodb|redis)://[^:]+:[^@]+@', 'i')
       };
 
       let detected = [];

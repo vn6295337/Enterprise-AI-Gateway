@@ -73,6 +73,19 @@ PII_PATTERNS = {
     "medical_dob": r"(DOB|date\s+of\s+birth|d\.o\.b\.?)[\s:]+\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4}",
     # Medical Records - MRN patterns
     "medical_mrn": r"(MRN|medical\s+record|patient\s+id|patient\s+number)[\s:#\-]+\d{4,}",
+
+    # Phone Numbers - US formats
+    "phone_us": r"\b(\+?1[\s\-.]?)?\(?\d{3}\)?[\s\-.]?\d{3}[\s\-.]?\d{4}\b",
+    # Phone Numbers - International with + prefix
+    "phone_intl": r"\+\d{1,3}[\s\-.]?\d{2,4}[\s\-.]?\d{3,4}[\s\-.]?\d{3,4}\b",
+
+    # IBAN - International Bank Account Number
+    "iban": r"\b[A-Z]{2}\d{2}[\s]?[A-Z0-9]{4}[\s]?[A-Z0-9]{4}[\s]?[A-Z0-9]{4}[\s]?[A-Z0-9]{0,14}\b",
+
+    # Password - Labeled patterns
+    "password_labeled": r"(password|passwd|pwd|pass)[\s:=]+\S+",
+    # Database connection strings with credentials
+    "db_connection": r"(postgres|mysql|mongodb|redis)://[^:]+:[^@]+@",
 }
 
 def detect_pii(prompt: str) -> dict:
