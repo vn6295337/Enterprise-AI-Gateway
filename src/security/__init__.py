@@ -37,11 +37,30 @@ def detect_prompt_injection(prompt: str) -> bool:
 
 # --- PII Detection ---
 PII_PATTERNS = {
+    # Existing patterns
     "email": r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}",
     "credit_card": r"\b\d{4}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b",
     "ssn": r"\b\d{3}-\d{2}-\d{4}\b",
     "tax_id": r"\b\d{2}-\d{7}\b",
-    "api_key": r"(sk|pk|api|bearer)[_-]?[a-zA-Z0-9]{20,}",
+
+    # API Keys - OpenAI/Anthropic style (sk-proj-xxx, sk-ant-xxx)
+    "api_key_openai": r"\bsk-[a-zA-Z0-9\-_]{20,}\b",
+    # API Keys - AWS access keys
+    "api_key_aws": r"\bAKIA[0-9A-Z]{16}\b",
+    # API Keys - Generic patterns with labels
+    "api_key_labeled": r"(api[_\-]?key|apikey|api[_\-]?secret|secret[_\-]?key|access[_\-]?token|bearer)[\s:=]+\S+",
+
+    # Passport Numbers - 1-2 letters followed by 6-9 digits
+    "passport": r"\b[A-Z]{1,2}[\s\-]?\d{6,9}\b",
+
+    # Driver's License - Letter followed by digit groups
+    "drivers_license_dashed": r"\b[A-Z]\d{3}[\-\s]?\d{4}[\-\s]?\d{4}\b",
+    "drivers_license_simple": r"\b[A-Z]\d{6,12}\b",
+
+    # Medical Records - DOB patterns
+    "medical_dob": r"(DOB|date\s+of\s+birth|d\.o\.b\.?)[\s:]+\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4}",
+    # Medical Records - MRN patterns
+    "medical_mrn": r"(MRN|medical\s+record|patient\s+id|patient\s+number)[\s:#\-]+\d{4,}",
 }
 
 def detect_pii(prompt: str) -> dict:

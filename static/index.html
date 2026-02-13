@@ -467,11 +467,30 @@
     // Detect PII (Personally Identifiable Information) in prompts
     function detectPII(prompt) {
       const patterns = {
+        // Existing patterns
         email: new RegExp('[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}'),
         creditCard: new RegExp('\\b\\d{4}[\\s-]?\\d{4}[\\s-]?\\d{4}[\\s-]?\\d{4}\\b'),
         ssn: new RegExp('\\b\\d{3}-\\d{2}-\\d{4}\\b'),
         taxId: new RegExp('\\b\\d{2}-\\d{7}\\b'),
-        apiKey: new RegExp('(sk|pk|api|bearer)[_-]?[a-zA-Z0-9]{20,}', 'i')
+
+        // API Keys - OpenAI/Anthropic style (sk-proj-xxx, sk-ant-xxx)
+        apiKeyOpenAI: new RegExp('\\bsk-[a-zA-Z0-9\\-_]{20,}\\b'),
+        // API Keys - AWS access keys
+        apiKeyAWS: new RegExp('\\bAKIA[0-9A-Z]{16}\\b'),
+        // API Keys - Generic patterns with labels
+        apiKeyLabeled: new RegExp('(api[_\\-]?key|apikey|api[_\\-]?secret|secret[_\\-]?key|access[_\\-]?token|bearer)[\\s:=]+\\S+', 'i'),
+
+        // Passport Numbers - 1-2 letters followed by 6-9 digits
+        passport: new RegExp('\\b[A-Z]{1,2}[\\s\\-]?\\d{6,9}\\b'),
+
+        // Driver's License - Letter followed by digit groups
+        driversLicenseDashed: new RegExp('\\b[A-Z]\\d{3}[\\-\\s]?\\d{4}[\\-\\s]?\\d{4}\\b'),
+        driversLicenseSimple: new RegExp('\\b[A-Z]\\d{6,12}\\b'),
+
+        // Medical Records - DOB patterns
+        medicalDOB: new RegExp('(DOB|date\\s+of\\s+birth|d\\.o\\.b\\.?)[\\s:]+\\d{1,2}[/\\-]\\d{1,2}[/\\-]\\d{2,4}', 'i'),
+        // Medical Records - MRN patterns
+        medicalMRN: new RegExp('(MRN|medical\\s+record|patient\\s+id|patient\\s+number)[\\s:#\\-]+\\d{4,}', 'i')
       };
 
       let detected = [];
